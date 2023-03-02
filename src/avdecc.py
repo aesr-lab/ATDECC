@@ -254,21 +254,24 @@ class jdksInterface:
     
     def send_adp(self, msg, entity):
 
-        res = AVDECC_set_adpdu(self.handle, entity.get_adpdu())
+        pdu = entity.get_adpdu()
+        res = AVDECC_set_adpdu(self.handle, pdu)
         assert res == 0
+
+        logging.debug("ADPDU: %s", adpdu_str(pdu))
 
         res = AVDECC_send_adp(self.handle, msg, avdecc_api.uint64_t(entity.entity_id))
         assert res == 0
         logging.debug(f"AVDECC_send_adp {msg} done")
 
     def recv_adp(self, adpdu):
-        logging.info("ADP:", adpdu_str(adpdu))
+        logging.info("ADP: %s", adpdu_str(adpdu))
 
     def recv_acmp(self, acmpdu):
-        logging.info("ACMP:", acmpdu)
+        logging.info("ACMP: %s", acmpdu)
 
     def recv_aecp_aem(self, aecpdu_aem):
-        logging.info("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
+        logging.info("AECP_AEM: %s", aecpdu_aem_str(aecpdu_aem))
 
     @avdecc_api.AVDECC_ADP_CALLBACK
     def _adp_cb(handle, frame_ptr, adpdu_ptr):
@@ -287,7 +290,7 @@ class Interface(jdksInterface):
     def __init__(self, ifname):
         super(Interface, self).__init__(ifname)
         self.mac = intf_to_mac(self.ifname) # MAC as string
-
+        logging.debug(f"MAC: {self.mac}")
 
 class GlobalStateMachine:
     """
