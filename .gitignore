@@ -1,0 +1,8 @@
+.*
+*.log
+*.so
+*.dylib
+*.o
+*.opp
+/venv
+

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <jdksavdecc.h>
+
 #ifdef __cplusplus
 #	define AVDECC_CPP_EXPORT extern "C"
 #else // !__cplusplus
@@ -35,10 +37,12 @@
 
 typedef void *AVDECC_HANDLE;
 
-void (AVDECC_C_CALL_CONVENTION* AVDECC_ADP_CALLBACK)(const struct jdksavdecc_frame *frame, const struct jdksavdecc_adpdu *adpdu);
-void (AVDECC_C_CALL_CONVENTION* AVDECC_ACMP_CALLBACK)(const struct jdksavdecc_frame *frame, const struct jdksavdecc_acmpdu *acmpdu);
-void (AVDECC_C_CALL_CONVENTION* AVDECC_AECP_AEM_CALLBACK)(const struct jdksavdecc_frame *frame, const struct jdksavdecc_aecpdu_aem *aemdu);
+typedef void (AVDECC_C_CALL_CONVENTION* AVDECC_ADP_CALLBACK)(const struct jdksavdecc_frame *frame, const struct jdksavdecc_adpdu *adpdu);
+typedef void (AVDECC_C_CALL_CONVENTION* AVDECC_ACMP_CALLBACK)(const struct jdksavdecc_frame *frame, const struct jdksavdecc_acmpdu *acmpdu);
+typedef void (AVDECC_C_CALL_CONVENTION* AVDECC_AECP_AEM_CALLBACK)(const struct jdksavdecc_frame *frame, const struct jdksavdecc_aecpdu_aem *aemdu);
 
-AVDECC_C_API error_t AVDECC_C_CALL_CONVENTION AVDECC_create(AVDECC_HANDLE *handle, AVDECC_ADP_CALLBACK adp_cb, AVDECC_ACMP_CALLBACK acmp_cb, AVDECC_AECP_AEM_CALLBACK aecp_aem_cb);
-
-AVDECC_C_API error_t AVDECC_C_CALL_CONVENTION AVDECC_destroy(AVDECC_HANDLE handle);
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_create(AVDECC_HANDLE *handle, const char *intf, AVDECC_ADP_CALLBACK adp_cb, AVDECC_ACMP_CALLBACK acmp_cb, AVDECC_AECP_AEM_CALLBACK aecp_aem_cb);
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_destroy(AVDECC_HANDLE handle);
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_adp(AVDECC_HANDLE handle, int argc, char **argv);
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_acmp(AVDECC_HANDLE handle, int argc, char **argv);
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_aecp(AVDECC_HANDLE handle, int argc, char **argv);
