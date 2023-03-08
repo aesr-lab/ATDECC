@@ -1,4 +1,6 @@
 LIBNAME=avdecc_mod
+APIHDR=$(LIBNAME).h
+APIMOD=$(LIBNAME).py
 
 .PHONY: clean all
 
@@ -9,15 +11,17 @@ CPP_SRCS=$(wildcard *.cpp)
 C_SRCS=$(wildcard ../jdksavdecc-c/src/*.c) $(wildcard ../avdecc-cmd/src/*.c)
 OBJS=$(patsubst %.c,%.o,$(C_SRCS)) $(patsubst %.cpp,%.opp,$(CPP_SRCS))
 
-OPTIONS=-I../jdksavdecc-c/include -I../avdecc-cmd/include
+INCLUDES=-I../jdksavdecc-c/include -I../avdecc-cmd/include
 
 LD_FLAGS=-lpcap
+
+OPTIONS=$(INCLUDES) -Davdecc_c_EXPORTS
 
 ifeq ($(DEBUG), 1)
 OPTIONS+=-O0 -g -DDEBUG
 LD_FLAGS+=-g
 else
-OPTIONS+=-O3
+OPTIONS+=-O3 -DNDEBUG
 endif
 
 C_FLAGS=$(OPTIONS)
@@ -35,7 +39,8 @@ endif
 
 DYLIB=$(LIBNAME).$(SHLIB_EXT)
 
-all: $(DYLIB)
+
+all: $(APIMOD)
 
 %.o: %.c
 	$(CC) -c $< $(C_FLAGS) -o $@
@@ -46,5 +51,12 @@ all: $(DYLIB)
 $(DYLIB): $(OBJS)
 	$(CXX) $^ $(LD_FLAGS) -o $@
 
+$(APIHDR): interface.h $(DYLIB)
+	$(CC) $(INCLUDES) -E $< -o $@
+	
+$(APIMOD): $(APIHDR)
+	clang2py -l$(DYLIB) $< > $@
+
+
 clean:
-	rm $(OBJS) $(DYLIB)
+	rm -f $(OBJS) $(DYLIB) $(APIHDR) $(APIMOD)
