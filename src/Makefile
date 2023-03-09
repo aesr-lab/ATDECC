@@ -1,5 +1,4 @@
-LIBNAME=avdecc_mod
-APIHDR=$(LIBNAME).h
+LIBNAME=avdecc_api
 APIMOD=$(LIBNAME).py
 
 .PHONY: clean all
@@ -26,11 +25,7 @@ endif
 
 C_FLAGS=$(OPTIONS)
 CPP_FLAGS=$(OPTIONS) -std=c++11
-CLANG_FLAGS=
-
-# we do need clang as a translater because gcc would generate __malloc__ function attributes with arguments which cannot be understood by clang2py later
-CC=clang
-CXX=clang++
+CLANG_FLAGS=$(INCLUDES)
 
 ifneq (, $(findstring darwin, $(SYS)))
 # MacOS
@@ -42,7 +37,7 @@ SHLIB_EXT=so
 LD_FLAGS+=-shared
 endif
 
-DYLIB=$(LIBNAME).$(SHLIB_EXT)
+DYLIB=$(LIBNAME)_mod.$(SHLIB_EXT)
 
 
 all: $(APIMOD)
@@ -56,13 +51,10 @@ all: $(APIMOD)
 $(DYLIB): $(OBJS)
 	$(CXX) $^ $(LD_FLAGS) -o $@
 
-$(APIHDR): interface.h $(DYLIB)
-	$(CC) $(INCLUDES) -E $< -o $@
-
-$(APIMOD): $(APIHDR)
-	clang2py -l$(DYLIB) --clang-args="$(CLANG_FLAGS)" $< -o $@
+$(APIMOD): interface.h $(DYLIB) Makefile $(APIMOD).patch
+	clang2py -l$(DYLIB) -i --clang-args="$(CLANG_FLAGS)" $< -o $@
 	test -s $@
-
+	patch -p0 $@ $(APIMOD).patch
 
 clean:
-	rm -f $(OBJS) $(DYLIB) $(APIHDR) $(APIMOD)
+	rm -f $(OBJS) $(DYLIB) $(APIMOD)
