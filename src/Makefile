@@ -45,7 +45,7 @@ all: $(APIMOD)
 %.o: %.c
 	$(CC) -c $< $(C_FLAGS) -o $@
 
-%.opp: %.cpp
+interface.opp: interface.cpp interface.h Makefile
 	$(CXX) -c $< $(CPP_FLAGS) -o $@
 
 $(DYLIB): $(OBJS)

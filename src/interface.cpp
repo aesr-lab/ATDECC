@@ -48,9 +48,9 @@ class avdecc_adp_msg_t:
   public avdecc_msg_t
 {
 public:
-  avdecc_adp_msg_t(int argc, const char **argv):
-    avdecc_msg_t(AVDECC_ADP_MSG, argc?argv[0]:NULL),
-    arg_entity_id(argc >= 2?argv[1]:NULL)
+  avdecc_adp_msg_t(const char *msg, const char *entity):
+    avdecc_msg_t(AVDECC_ADP_MSG, msg),
+    arg_entity_id(entity?entity:"")
   {
   }
   
@@ -277,7 +277,7 @@ public:
 
 // C API
 
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_create(AVDECC_HANDLE *handle, const char *intf, AVDECC_ADP_CALLBACK adp_cb, AVDECC_ACMP_CALLBACK acmp_cb, AVDECC_AECP_AEM_CALLBACK aecp_aem_cb)
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_create(AVDECC_HANDLE *handle, const_string_t intf, AVDECC_ADP_CALLBACK adp_cb, AVDECC_ACMP_CALLBACK acmp_cb, AVDECC_AECP_AEM_CALLBACK aecp_aem_cb)
 {
   avdecc_t *avdecc = new avdecc_t(intf, adp_cb, acmp_cb, aecp_aem_cb);
   *handle = static_cast<void *>(avdecc); 
@@ -291,26 +291,26 @@ AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_destroy(AVDECC_HANDLE handle)
   return 0;
 }
 
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_adp(AVDECC_HANDLE handle, int argc, char **argv)
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_adp(AVDECC_HANDLE handle, const_string_t msg, const_string_t entity)
 {
   avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
-  avdecc_adp_msg_t *msg = new avdecc_adp_msg_t(argc, const_cast<const char **>(argv));
-  avdecc->send.push(msg);
+  avdecc_adp_msg_t *m = new avdecc_adp_msg_t(msg, entity);
+  avdecc->send.push(m);
   return 0;
 }
 
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_acmp(AVDECC_HANDLE handle, int argc, char **argv)
 {
   avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
-  avdecc_acmp_msg_t *msg = new avdecc_acmp_msg_t(argc, const_cast<const char **>(argv));
-  avdecc->send.push(msg);
+  avdecc_acmp_msg_t *m = new avdecc_acmp_msg_t(argc, const_cast<const char **>(argv));
+  avdecc->send.push(m);
   return 0;
 }
 
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_aecp(AVDECC_HANDLE handle, int argc, char **argv)
 {
   avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
-  avdecc_aecp_msg_t *msg = new avdecc_aecp_msg_t(argc, const_cast<const char **>(argv));
-  avdecc->send.push(msg);
+  avdecc_aecp_msg_t *m = new avdecc_aecp_msg_t(argc, const_cast<const char **>(argv));
+  avdecc->send.push(m);
   return 0;
 }
