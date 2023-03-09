@@ -26,6 +26,7 @@ endif
 
 C_FLAGS=$(OPTIONS)
 CPP_FLAGS=$(OPTIONS) -std=c++11
+CLANG_FLAGS=-std=c++11
 
 ifneq (, $(findstring darwin, $(SYS)))
 # MacOS
@@ -55,7 +56,7 @@ $(APIHDR): interface.h $(DYLIB)
 	$(CC) $(INCLUDES) -E $< -o $@
 	
 $(APIMOD): $(APIHDR)
-	clang2py -l$(DYLIB) $< > $@
+	clang2py -l$(DYLIB) --clang-args="$(CLANG_FLAGS)" $< > $@
 
 
 clean:
