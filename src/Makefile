@@ -26,7 +26,11 @@ endif
 
 C_FLAGS=$(OPTIONS)
 CPP_FLAGS=$(OPTIONS) -std=c++11
-CLANG_FLAGS=-std=c++11
+CLANG_FLAGS=
+
+# we do need clang as a translater because gcc would generate __malloc__ function attributes with arguments which cannot be understood by clang2py later
+CC=clang
+CXX=clang++
 
 ifneq (, $(findstring darwin, $(SYS)))
 # MacOS
@@ -54,9 +58,10 @@ $(DYLIB): $(OBJS)
 
 $(APIHDR): interface.h $(DYLIB)
 	$(CC) $(INCLUDES) -E $< -o $@
-	
+
 $(APIMOD): $(APIHDR)
-	clang2py -l$(DYLIB) --clang-args="$(CLANG_FLAGS)" $< > $@
+	clang2py -l$(DYLIB) --clang-args="$(CLANG_FLAGS)" $< -o $@
+	test -s $@
 
 
 clean:
