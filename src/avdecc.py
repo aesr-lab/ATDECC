@@ -69,11 +69,13 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("-i", "--intf", type=str, default='eth0',
                         help="Network interface (default='%(default)s')")
+    parser.add_argument("-e", "--entity", type=str, default='11:22:33:44:55:66:77:88',
+                        help="Entity ID (default='%(default)s')")
     parser.add_argument('-d', "--debug", action='store_true', default=0,
                         help="Enable debug mode")
     parser.add_argument('-v', "--verbose", action='count', default=0,
                         help="Increase verbosity")
-    parser.add_argument("args", nargs='*')
+#    parser.add_argument("args", nargs='*')
     args = parser.parse_args()
 
     try:
@@ -84,7 +86,7 @@ if __name__ == '__main__':
         assert handle
 
         msg = ctypes.c_char_p("ENTITY_AVAILABLE".encode())
-        entity = ctypes.c_char_p(args.args[0].encode())
+        entity = ctypes.c_char_p(args.entity.encode())
         res = AVDECC_send_adp(handle, msg, entity)
         assert res == 0
 
@@ -101,7 +103,7 @@ if __name__ == '__main__':
         
     finally:
         msg = ctypes.c_char_p("ENTITY_DEPARTING".encode())
-        entity = ctypes.c_char_p(args.args[0].encode())
+        entity = ctypes.c_char_p(args.entity.encode())
         res = AVDECC_send_adp(handle, msg, entity)
         assert res == 0
 
