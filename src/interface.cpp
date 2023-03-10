@@ -28,71 +28,60 @@ union jdksavdecc_du
 class avdecc_msg_t
 {
 public:
-  avdecc_msg_t(avdecc_msg_e _tp, const char *_subtp = NULL): 
+  avdecc_msg_t(avdecc_msg_e _tp, uint16_t _subtp = 0): 
     tp(_tp), 
-    arg_message_type(_subtp?_subtp:"") 
+    arg_message_type(_subtp)
   {}
 
   virtual ~avdecc_msg_t() {}
 
   avdecc_msg_e tp;
-  std::string arg_message_type;
+  uint16_t arg_message_type;
 };
 
 class avdecc_adp_msg_t:
   public avdecc_msg_t
 {
 public:
-  avdecc_adp_msg_t(const char *msg, const char *entity):
+  avdecc_adp_msg_t(int msg, uint64_t entity):
     avdecc_msg_t(AVDECC_ADP_MSG, msg),
-    arg_entity_id(entity?entity:"")
+    arg_entity_id(entity)
   {
   }
   
   int send(struct raw_context *net, struct jdksavdecc_frame *frame, jdksavdecc_adpdu &adpdu) const
   {
-    struct jdksavdecc_eui64 entity_id;
-    bzero( &entity_id, sizeof( entity_id ) );
-    uint16_t message_type_code;
+    uint16_t message_type_code = arg_message_type;
     int r = 1;
 
-    if ( jdksavdecc_get_uint16_value_for_name( jdksavdecc_adpdu_print_message_type, arg_message_type.c_str(), &message_type_code ) )
-    {
-      if ( arg_entity_id.length() )
-      {
-          if ( !jdksavdecc_eui64_init_from_cstr( &entity_id, arg_entity_id.c_str() ) )
-          {
-              fprintf( stderr, "ADP: invalid entity_id: '%s'\n", arg_entity_id.c_str() );
-              r = -1;
-          }
-      }
+    struct jdksavdecc_eui64 entity_id;
+    jdksavdecc_eui64_init_from_uint64( &entity_id, arg_entity_id );
 
-      if ( adp_form_msg( frame, &adpdu, message_type_code, entity_id ) == 0 )
-      {
-          if ( raw_send( net, frame->dest_address.value, frame->payload, frame->length ) > 0 )
-          {
-            // success
-            r = 0;
-          }
-      }
-      else {
-        // unable to form message
-        r = -2;
-      }
+    if ( adp_form_msg( frame, &adpdu, message_type_code, entity_id ) == 0 )
+    {
+        if ( raw_send( net, frame->dest_address.value, frame->payload, frame->length ) > 0 )
+        {
+          // success
+          r = 0;
+        }
+    }
+    else {
+      // unable to form message
+      r = -2;
     }
     
     return r;
   }
   
-  std::string arg_entity_id;
+  uint64_t arg_entity_id;
 };
 
 class avdecc_acmp_msg_t:
   public avdecc_msg_t
 {
 public:
-  avdecc_acmp_msg_t(int argc, const char **argv):
-    avdecc_msg_t(AVDECC_ACMP_MSG, argc?argv[0]:NULL)
+  avdecc_acmp_msg_t(uint64_t _subtp, int argc, const char **argv):
+    avdecc_msg_t(AVDECC_ACMP_MSG, _subtp)
   {
     
   }
@@ -107,8 +96,8 @@ class avdecc_aecp_msg_t:
   public avdecc_msg_t
 {
 public:
-  avdecc_aecp_msg_t(int argc, const char **argv):
-    avdecc_msg_t(AVDECC_AECP_MSG, argc?argv[0]:NULL)
+  avdecc_aecp_msg_t(uint64_t _subtp, int argc, const char **argv):
+    avdecc_msg_t(AVDECC_AECP_MSG, _subtp)
   {
     
   }
@@ -288,7 +277,7 @@ AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_destroy(AVDECC_HANDLE handle)
   return 0;
 }
 
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_adp(AVDECC_HANDLE handle, const_string_t msg, const_string_t entity)
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_adp(AVDECC_HANDLE handle, uint16_t msg, uint64_t entity)
 {
   avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
   avdecc_adp_msg_t *m = new avdecc_adp_msg_t(msg, entity);
@@ -310,18 +299,18 @@ AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_set_adpdu(AVDECC_HANDLE handle,
   return 0;
 }
 
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_acmp(AVDECC_HANDLE handle, int argc, char **argv)
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_acmp(AVDECC_HANDLE handle, uint16_t msg, int argc, char **argv)
 {
   avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
-  avdecc_acmp_msg_t *m = new avdecc_acmp_msg_t(argc, const_cast<const char **>(argv));
+  avdecc_acmp_msg_t *m = new avdecc_acmp_msg_t(msg, argc, const_cast<const char **>(argv));
   avdecc->send.push(m);
   return 0;
 }
 
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_aecp(AVDECC_HANDLE handle, int argc, char **argv)
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_aecp(AVDECC_HANDLE handle, uint16_t msg, int argc, char **argv)
 {
   avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
-  avdecc_aecp_msg_t *m = new avdecc_aecp_msg_t(argc, const_cast<const char **>(argv));
+  avdecc_aecp_msg_t *m = new avdecc_aecp_msg_t(msg, argc, const_cast<const char **>(argv));
   avdecc->send.push(m);
   return 0;
 }

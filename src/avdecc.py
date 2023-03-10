@@ -69,8 +69,8 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("-i", "--intf", type=str, default='eth0',
                         help="Network interface (default='%(default)s')")
-    parser.add_argument("-e", "--entity", type=str, default='11:22:33:44:55:66:77:88',
-                        help="Entity ID (default='%(default)s')")
+    parser.add_argument("-e", "--entity", type=int, default=0x1122334455667788,
+                        help="Entity ID (default='%(default)x')")
     parser.add_argument("--discover", action='store_true', help="Discover AVDECC entities")
     parser.add_argument('-d', "--debug", action='store_true', default=0,
                         help="Enable debug mode")
@@ -101,14 +101,11 @@ if __name__ == '__main__':
 
 #        print("ADP:", adpdu_str(adpdu))
 
-        msg = ctypes.c_char_p("ENTITY_AVAILABLE".encode())
-        entity = ctypes.c_char_p(args.entity.encode())
-        res = AVDECC_send_adp(handle, msg, entity)
+        res = AVDECC_send_adp(handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, args.entity)
         assert res == 0
 
         if args.discover:
-            msg = ctypes.c_char_p("ENTITY_DISCOVER".encode())
-            res = AVDECC_send_adp(handle, msg, entity)
+            res = AVDECC_send_adp(handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER, args.entity)
             assert res == 0
 
         while(True):
@@ -118,9 +115,7 @@ if __name__ == '__main__':
         pass
         
     finally:
-        msg = ctypes.c_char_p("ENTITY_DEPARTING".encode())
-        entity = ctypes.c_char_p(args.entity.encode())
-        res = AVDECC_send_adp(handle, msg, entity)
+        res = AVDECC_send_adp(handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, args.entity)
         assert res == 0
 
         res = AVDECC_destroy(handle)
