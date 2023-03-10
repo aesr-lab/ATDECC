@@ -2,7 +2,7 @@
 
 import ctypes
 import avdecc_api
-from avdecc_api import AVDECC_create, AVDECC_destroy, AVDECC_send_adp, AVDECC_send_acmp, AVDECC_send_aecp
+from avdecc_api import AVDECC_create, AVDECC_destroy, AVDECC_send_adp, AVDECC_set_adpdu, AVDECC_send_acmp, AVDECC_send_aecp
 import time
 
 def eui64_str(eui64):
@@ -52,12 +52,12 @@ def adp_cb(frame_ptr, adpdu_ptr):
 
 @avdecc_api.AVDECC_ACMP_CALLBACK
 def acmp_cb(frame_ptr, acmpdu_ptr):
-    acmpdu = acmpdu_ptr.content
+    acmpdu = acmpdu_ptr.contents
     print("ACMP", acmpdu)
 
 @avdecc_api.AVDECC_AECP_AEM_CALLBACK
 def aecp_aem_cb(frame_ptr, aecpdu_aem_ptr):
-    aecpdu_aem = aecpdu_aem_ptr.content
+    aecpdu_aem = aecpdu_aem_ptr.contents
     print("AECP_AEM", aecpdu_aem)
 
 def chk_err(res):
@@ -71,6 +71,7 @@ if __name__ == '__main__':
                         help="Network interface (default='%(default)s')")
     parser.add_argument("-e", "--entity", type=str, default='11:22:33:44:55:66:77:88',
                         help="Entity ID (default='%(default)s')")
+    parser.add_argument("--discover", action='store_true', help="Discover AVDECC entities")
     parser.add_argument('-d', "--debug", action='store_true', default=0,
                         help="Enable debug mode")
     parser.add_argument('-v', "--verbose", action='count', default=0,
@@ -84,19 +85,34 @@ if __name__ == '__main__':
         res = AVDECC_create(ctypes.byref(handle), intf, adp_cb, acmp_cb, aecp_aem_cb)
         assert res == 0
         assert handle
+        
+        if False:
+            adpdu = avdecc_api.struct_jdksavdecc_adpdu(
+                entity_model_id = avdecc_api.struct_jdksavdecc_eui64(value = (1,2,3,4,5,6,7,8)),
+                entity_capabilities=avdecc_api.JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED+
+                                    avdecc_api.JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED,
+                listener_stream_sinks=16,
+                listener_capabilities=avdecc_api.JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED+
+                                      avdecc_api.JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK,
+                gptp_grandmaster_id = avdecc_api.struct_jdksavdecc_eui64(value = (1,2,3,4,5,6,7,8)),
+            )
+            res = AVDECC_set_adpdu(handle, adpdu)
+            assert res == 0
+
+#        print("ADP:", adpdu_str(adpdu))
 
         msg = ctypes.c_char_p("ENTITY_AVAILABLE".encode())
         entity = ctypes.c_char_p(args.entity.encode())
         res = AVDECC_send_adp(handle, msg, entity)
         assert res == 0
 
-        msg = ctypes.c_char_p("ENTITY_DISCOVER".encode())
-        entity = ctypes.c_char_p(None)
-        res = AVDECC_send_adp(handle, msg, entity)
-        assert res == 0
+        if args.discover:
+            msg = ctypes.c_char_p("ENTITY_DISCOVER".encode())
+            res = AVDECC_send_adp(handle, msg, entity)
+            assert res == 0
 
         while(True):
-            time.sleep(1)
+            time.sleep(0.1)
             
     except KeyboardInterrupt:
         pass
