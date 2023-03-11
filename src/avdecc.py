@@ -45,6 +45,27 @@ def adpdu_str(adpdu):
         eui64_str(adpdu.association_id),
     )
 
+def aecpdu_aem_header_str(hdr):
+    return "cd={:x} subtype={:x} sv={:x} version={:x} message_type={:x} " \
+           "status={:x} control_data_length={} target_entity_id={}".format(
+        hdr.cd,
+        hdr.subtype,
+        hdr.sv,
+        hdr.version,
+        hdr.message_type,
+        hdr.status,
+        hdr.control_data_length,
+        eui64_str(hdr.target_entity_id),
+    )
+
+def aecpdu_aem_str(aecpdu_aem):
+    return "hdr=[{}] controller_entity_id={} sequence_id={} command_type={:x}".format(
+        aecpdu_aem_header_str(aecpdu_aem.aecpdu_header.header),
+        eui64_str(aecpdu_aem.aecpdu_header.controller_entity_id),
+        aecpdu_aem.aecpdu_header.sequence_id,
+        aecpdu_aem.command_type,
+    )
+
 @avdecc_api.AVDECC_ADP_CALLBACK
 def adp_cb(frame_ptr, adpdu_ptr):
     adpdu = adpdu_ptr.contents
@@ -53,12 +74,12 @@ def adp_cb(frame_ptr, adpdu_ptr):
 @avdecc_api.AVDECC_ACMP_CALLBACK
 def acmp_cb(frame_ptr, acmpdu_ptr):
     acmpdu = acmpdu_ptr.contents
-    print("ACMP", acmpdu)
+    print("ACMP:", acmpdu)
 
 @avdecc_api.AVDECC_AECP_AEM_CALLBACK
 def aecp_aem_cb(frame_ptr, aecpdu_aem_ptr):
     aecpdu_aem = aecpdu_aem_ptr.contents
-    print("AECP_AEM", aecpdu_aem)
+    print("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
 
 def chk_err(res):
     if res:
@@ -86,7 +107,7 @@ if __name__ == '__main__':
         assert res == 0
         assert handle
         
-        if False:
+        if True:
             adpdu = avdecc_api.struct_jdksavdecc_adpdu(
                 entity_model_id = avdecc_api.struct_jdksavdecc_eui64(value = (1,2,3,4,5,6,7,8)),
                 entity_capabilities=avdecc_api.JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED+
@@ -105,7 +126,7 @@ if __name__ == '__main__':
         assert res == 0
 
         if args.discover:
-            res = AVDECC_send_adp(handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER, args.entity)
+            res = AVDECC_send_adp(handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER, 0)
             assert res == 0
 
         while(True):
@@ -117,5 +138,8 @@ if __name__ == '__main__':
     finally:
         res = AVDECC_send_adp(handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, args.entity)
         assert res == 0
+
+        # we need a bit of time so that the previous message can get through
+        time.sleep(0.5)
 
         res = AVDECC_destroy(handle)

@@ -2,7 +2,7 @@
 < jdksavdecc_1722a_pdu_print_cd_subtype = struct_jdksavdecc_uint16_name * 0() # Variable struct_jdksavdecc_uint16_name * 0
 ---
 > #jdksavdecc_1722a_pdu_print_cd_subtype = struct_jdksavdecc_uint16_name * 0() # Variable struct_jdksavdecc_uint16_name * 0
-17049c17049
+18076c18076
 < const_string_t = ctypes.POINTER(ctypes.c_ubyte)
 ---
 > const_string_t = ctypes.POINTER(ctypes.c_char)

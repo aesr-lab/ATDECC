@@ -10,6 +10,113 @@
 #include "interface.h"
 #include "queue.hpp"
 
+
+static int acmp_check_listener(struct raw_context *net,
+                         const struct jdksavdecc_frame *frame,
+                         struct jdksavdecc_acmpdu *acmpdu,
+                         const struct jdksavdecc_eui64 *controller_entity_id,
+                         uint16_t sequence_id,
+                         const struct jdksavdecc_eui64 *listener_entity_id,
+                         uint16_t listener_unique_id )
+{
+    int r = -1;
+
+    if(
+      frame->ethertype == JDKSAVDECC_AVTP_ETHERTYPE && 
+      frame->payload[0] == JDKSAVDECC_1722A_SUBTYPE_ACMP &&
+      (
+        (memcmp( &frame->dest_address, &jdksavdecc_multicast_adp_acmp, 6 ) == 0) ||
+        (memcmp( &frame->dest_address, net->m_my_mac, 6 ) == 0)
+      )
+    )
+    {
+        fprintf(stderr, "ACMP\n");
+        bzero( acmpdu, sizeof( *acmpdu ) );
+        if ( jdksavdecc_acmpdu_read( acmpdu, frame->payload, 0, frame->length ) > 0 )
+        {
+            struct jdksavdecc_eui64 zero;
+            bzero( &zero, sizeof( zero ) );
+            
+            if ( acmpdu->header.message_type == JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE
+                 || acmpdu->header.message_type == JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE
+                 || acmpdu->header.message_type == JDKSAVDECC_ACMP_MESSAGE_TYPE_GET_RX_STATE_RESPONSE )
+            {
+
+                if ( controller_entity_id && jdksavdecc_eui64_compare( &zero, controller_entity_id ) != 0 )
+                    if ( jdksavdecc_eui64_compare( &acmpdu->controller_entity_id, controller_entity_id ) == 0 )
+                        /* If we care about controller_entity_id then we are caring about sequence_id */
+                        r = ( acmpdu->sequence_id == sequence_id )?0:-1;
+                    else
+                        r = -1;
+                else
+                    r = 0;
+
+                if ( r == 0 )
+                    if ( listener_entity_id && jdksavdecc_eui64_compare( &zero, listener_entity_id ) != 0 )
+                        if ( jdksavdecc_eui64_compare( &acmpdu->listener_entity_id, listener_entity_id ) == 0 )
+                            /* If we care about listener_entity_id then we are caring about listener_unique_id */
+                            r = ( acmpdu->listener_unique_id == listener_unique_id )?0:-1;
+                        else
+                            r = -1;
+                    else
+                        r = 0;
+            }
+        }
+    }
+    return r;
+}
+
+static int aecp_aem_check(struct raw_context *net,
+                    const struct jdksavdecc_frame *frame,
+                    struct jdksavdecc_aecpdu_aem *aem,
+                    const struct jdksavdecc_eui64 *controller_entity_id,
+                    const struct jdksavdecc_eui64 *target_entity_id,
+                    uint16_t sequence_id )
+{
+    int r = -1;
+
+    if(
+      frame->ethertype == JDKSAVDECC_AVTP_ETHERTYPE && 
+      frame->payload[0] == JDKSAVDECC_1722A_SUBTYPE_AECP &&
+      (
+        (memcmp( &frame->dest_address, &jdksavdecc_multicast_adp_acmp, 6 ) == 0) ||
+        (memcmp( &frame->dest_address, net->m_my_mac, 6 ) == 0)
+      )
+    )
+    {
+      bzero( aem, sizeof( *aem ) );
+      ssize_t pos = jdksavdecc_aecpdu_aem_read( aem, frame->payload, 0, frame->length );
+      if ( pos > 0 )
+      {
+          struct jdksavdecc_aecpdu_common_control_header *h = &aem->aecpdu_header.header;
+          if ( h->version == 0 && h->subtype == JDKSAVDECC_SUBTYPE_AECP && h->cd == 1 )
+          {
+              if ( 
+                  h->message_type == JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_COMMAND || 
+                  h->message_type == JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE 
+                )
+              {
+                  if ( h->control_data_length >= JDKSAVDECC_AECPDU_AEM_LEN - JDKSAVDECC_COMMON_CONTROL_HEADER_LEN )
+                  {
+                      if ( !jdksavdecc_eui64_convert_to_uint64(controller_entity_id) || jdksavdecc_eui64_compare( &aem->aecpdu_header.controller_entity_id, controller_entity_id ) == 0 )
+                      {
+                          if ( !jdksavdecc_eui64_convert_to_uint64(target_entity_id) || jdksavdecc_eui64_compare( &aem->aecpdu_header.header.target_entity_id, target_entity_id ) == 0 )
+                          {
+                              if ( !sequence_id || aem->aecpdu_header.sequence_id == sequence_id )
+                              {
+                                  r = 0;
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+      }
+    }
+    return r;
+}
+
+
 enum avdecc_msg_e
 {
   AVDECC_ADP_MSG,
@@ -121,9 +228,9 @@ class avdecc_t
 {
 protected:
 
-  int process(struct raw_context *, const struct jdksavdecc_frame *frame) const
+  int process(struct raw_context *net, const struct jdksavdecc_frame *frame) const
   {
-    // only one will be used
+    // only one struct of the union will be used at a time
     jdksavdecc_du _du;
 
     // adpdu.header.entity_id was previously set by adp_form_msg in send_msg
@@ -131,7 +238,7 @@ protected:
       adp_cb(frame, &_du.adpdu);
       return 1;
     }
-    else if (acmp_check_listener(frame,
+    else if (acmp_check_listener(net, frame,
                               &_du.acmpdu,
                               &acmpdu.controller_entity_id,
                               acmpdu.sequence_id,
@@ -140,10 +247,10 @@ protected:
       acmp_cb(frame, &_du.acmpdu);
       return 1;
     }
-    else if(aecp_aem_check(frame,
+    else if(aecp_aem_check(net, frame,
                          &_du.aecpdu_aem,
-                         aecpdu_aem.aecpdu_header.controller_entity_id,
-                         aecpdu_aem.aecpdu_header.header.target_entity_id,
+                         &aecpdu_aem.aecpdu_header.controller_entity_id,
+                         &aecpdu_aem.aecpdu_header.header.target_entity_id,
                          aecpdu_aem.aecpdu_header.sequence_id ) == 0 ) {
       aecp_aem_cb(frame, &_du.aecpdu_aem);
       return 1;
@@ -226,10 +333,11 @@ public:
     aecp_aem_cb(_aecp_aem_cb),
     workerthr(NULL)
   {
-    workerthr = new std::thread(_worker, this);
     bzero(&adpdu, sizeof(adpdu));
     bzero(&acmpdu, sizeof(acmpdu));
     bzero(&aecpdu_aem, sizeof(aecpdu_aem));
+
+    workerthr = new std::thread(_worker, this);
   }
   
   ~avdecc_t()
