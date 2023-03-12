@@ -6,3 +6,5 @@
 *.opp
 /venv
 avdecc_api.*
+src/avdecc_mod.*
+
