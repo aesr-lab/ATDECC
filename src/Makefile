@@ -14,7 +14,7 @@ INCLUDES=-I../jdksavdecc-c/include -I../avdecc-cmd/include
 
 LD_FLAGS=-lpcap
 
-OPTIONS=$(INCLUDES) -Davdecc_c_EXPORTS -fPIC
+OPTIONS=$(INCLUDES) -Davdecc_c_EXPORTS -fPIC -fvisibility=hidden
 
 ifeq ($(DEBUG), 1)
 OPTIONS+=-O0 -g -DDEBUG

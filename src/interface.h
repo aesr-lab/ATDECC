@@ -38,9 +38,9 @@
 typedef void *AVDECC_HANDLE;
 typedef char const* const_string_t;
 
-typedef void (AVDECC_C_CALL_CONVENTION* AVDECC_ADP_CALLBACK)(const struct jdksavdecc_frame *frame, const struct jdksavdecc_adpdu *adpdu);
-typedef void (AVDECC_C_CALL_CONVENTION* AVDECC_ACMP_CALLBACK)(const struct jdksavdecc_frame *frame, const struct jdksavdecc_acmpdu *acmpdu);
-typedef void (AVDECC_C_CALL_CONVENTION* AVDECC_AECP_AEM_CALLBACK)(const struct jdksavdecc_frame *frame, const struct jdksavdecc_aecpdu_aem *aemdu);
+typedef void (AVDECC_C_CALL_CONVENTION* AVDECC_ADP_CALLBACK)(AVDECC_HANDLE handle, const struct jdksavdecc_frame *frame, const struct jdksavdecc_adpdu *adpdu);
+typedef void (AVDECC_C_CALL_CONVENTION* AVDECC_ACMP_CALLBACK)(AVDECC_HANDLE handle, const struct jdksavdecc_frame *frame, const struct jdksavdecc_acmpdu *acmpdu);
+typedef void (AVDECC_C_CALL_CONVENTION* AVDECC_AECP_AEM_CALLBACK)(AVDECC_HANDLE handle, const struct jdksavdecc_frame *frame, const struct jdksavdecc_aecpdu_aem *aemdu);
 
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_create(AVDECC_HANDLE *handle, const_string_t intf, AVDECC_ADP_CALLBACK adp_cb, AVDECC_ACMP_CALLBACK acmp_cb, AVDECC_AECP_AEM_CALLBACK aecp_aem_cb);
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_destroy(AVDECC_HANDLE handle);

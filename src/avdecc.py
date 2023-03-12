@@ -66,24 +66,87 @@ def aecpdu_aem_str(aecpdu_aem):
         aecpdu_aem.command_type,
     )
 
-@avdecc_api.AVDECC_ADP_CALLBACK
-def adp_cb(frame_ptr, adpdu_ptr):
-    adpdu = adpdu_ptr.contents
-    print("ADP:", adpdu_str(adpdu))
 
-@avdecc_api.AVDECC_ACMP_CALLBACK
-def acmp_cb(frame_ptr, acmpdu_ptr):
-    acmpdu = acmpdu_ptr.contents
-    print("ACMP:", acmpdu)
+class AVDECC:
+    handles = {}
 
-@avdecc_api.AVDECC_AECP_AEM_CALLBACK
-def aecp_aem_cb(frame_ptr, aecpdu_aem_ptr):
-    aecpdu_aem = aecpdu_aem_ptr.contents
-    print("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
+    def __init__(self, intf, debug=False, verbosity=0):
+        self.intf = intf
+        self.debug = debug
+        self.verbosity = verbosity
+        self.handle = ctypes.c_void_p()
+        self.entity = None
+
+    def __enter__(self):
+        intf = ctypes.c_char_p(self.intf.encode())
+        res = AVDECC_create(ctypes.byref(self.handle), intf, AVDECC._adp_cb, AVDECC._acmp_cb, AVDECC._aecp_aem_cb)
+        assert res == 0
+        assert self.handle
+        AVDECC.handles[self.handle.contents] = self  # register instance
+
+        adpdu = avdecc_api.struct_jdksavdecc_adpdu(
+            entity_model_id = avdecc_api.struct_jdksavdecc_eui64(value = (1,2,3,4,5,6,7,8)),
+            entity_capabilities=avdecc_api.JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED+
+                                avdecc_api.JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED,
+            listener_stream_sinks=16,
+            listener_capabilities=avdecc_api.JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED+
+                                  avdecc_api.JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK,
+            gptp_grandmaster_id = avdecc_api.struct_jdksavdecc_eui64(value = (1,2,3,4,5,6,7,8)),
+        )
+        res = AVDECC_set_adpdu(self.handle, adpdu)
+        assert res == 0
+
+        self.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity)
+
+        if False:
+            self.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER, 0)
+
+        return self
+
+    def __exit__(self):
+        self.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity)
+
+        # we need a bit of time so that the previous message can get through
+        time.sleep(0.5)
+
+        res = AVDECC_destroy(self.handle)
+        assert res == 0
+        del AVDECC.handles[self.handle.contents]  # unregister instance
+        self.handle.contents = None
+
+    def send_adp(self, msg, entity):
+        res = AVDECC_send_adp(self.handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity)
+        assert res == 0
+
+    def recv_adp(self, frame_ptr, adpdu_ptr):
+        adpdu = adpdu_ptr.contents
+        print("ADP:", adpdu_str(adpdu))
+
+    def recv_acmp(self, frame_ptr, acmpdu_ptr):
+        acmpdu = acmpdu_ptr.contents
+        print("ACMP:", acmpdu)
+
+    def recv_aecp_aem(self, frame_ptr, aecpdu_aem_ptr):
+        aecpdu_aem = aecpdu_aem_ptr.contents
+        print("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
+
+    @avdecc_api.AVDECC_ADP_CALLBACK
+    def _adp_aecp(handle, frame_ptr, adpdu_ptr):
+        AVDECC.handles[handle.contents].recv_adp(frame_ptr, adpdu_ptr)
+
+    @avdecc_api.AVDECC_ACMP_CALLBACK
+    def _acmp_cb(handle, frame_ptr, acmpdu_ptr):
+        AVDECC.handles[handle.contents].recv_acmp(frame_ptr, acmpdu_ptr)
+
+    @avdecc_api.AVDECC_AECP_AEM_CALLBACK
+    def _aecp_aem_cb(handle, frame_ptr, aecpdu_aem_ptr):
+        AVDECC.handles[handle.contents].recv_acecp_aem(frame_ptr, aecpdu_aem_ptr)
+
 
 def chk_err(res):
     if res:
         raise RuntimeError("Error", res)
+
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -92,7 +155,7 @@ if __name__ == '__main__':
                         help="Network interface (default='%(default)s')")
     parser.add_argument("-e", "--entity", type=int, default=0x1122334455667788,
                         help="Entity ID (default='%(default)x')")
-    parser.add_argument("--discover", action='store_true', help="Discover AVDECC entities")
+#    parser.add_argument("--discover", action='store_true', help="Discover AVDECC entities")
     parser.add_argument('-d', "--debug", action='store_true', default=0,
                         help="Enable debug mode")
     parser.add_argument('-v', "--verbose", action='count', default=0,
@@ -100,46 +163,11 @@ if __name__ == '__main__':
 #    parser.add_argument("args", nargs='*')
     args = parser.parse_args()
 
-    try:
-        handle = ctypes.c_void_p()
-        intf = ctypes.c_char_p(args.intf.encode())
-        res = AVDECC_create(ctypes.byref(handle), intf, adp_cb, acmp_cb, aecp_aem_cb)
-        assert res == 0
-        assert handle
-        
-        if True:
-            adpdu = avdecc_api.struct_jdksavdecc_adpdu(
-                entity_model_id = avdecc_api.struct_jdksavdecc_eui64(value = (1,2,3,4,5,6,7,8)),
-                entity_capabilities=avdecc_api.JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED+
-                                    avdecc_api.JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED,
-                listener_stream_sinks=16,
-                listener_capabilities=avdecc_api.JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED+
-                                      avdecc_api.JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK,
-                gptp_grandmaster_id = avdecc_api.struct_jdksavdecc_eui64(value = (1,2,3,4,5,6,7,8)),
-            )
-            res = AVDECC_set_adpdu(handle, adpdu)
-            assert res == 0
-
-#        print("ADP:", adpdu_str(adpdu))
-
-        res = AVDECC_send_adp(handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, args.entity)
-        assert res == 0
-
-        if args.discover:
-            res = AVDECC_send_adp(handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER, 0)
-            assert res == 0
+    with AVDECC(intf=args.intf, entity=args.entity,
+                debug=args.debug, verbose=args.verbose) as avdecc:
 
         while(True):
             time.sleep(0.1)
             
-    except KeyboardInterrupt:
-        pass
-        
-    finally:
-        res = AVDECC_send_adp(handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, args.entity)
-        assert res == 0
-
-        # we need a bit of time so that the previous message can get through
-        time.sleep(0.5)
-
-        res = AVDECC_destroy(handle)
+#    except KeyboardInterrupt:
+#        pass
