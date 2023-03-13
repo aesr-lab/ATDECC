@@ -143,12 +143,14 @@ enum avdecc_msg_e
   AVDECC_THREAD_JOIN,
 };
 
+
 union jdksavdecc_du
 {
   struct jdksavdecc_adpdu adpdu;
   struct jdksavdecc_acmpdu acmpdu;
   struct jdksavdecc_aecpdu_aem aecpdu_aem;
 };
+
 
 class avdecc_msg_t
 {
@@ -163,6 +165,7 @@ public:
   avdecc_msg_e tp;
   uint16_t arg_message_type;
 };
+
 
 class avdecc_adp_msg_t:
   public avdecc_msg_t
@@ -201,6 +204,7 @@ public:
   uint64_t arg_entity_id;
 };
 
+
 class avdecc_acmp_msg_t:
   public avdecc_msg_t
 {
@@ -233,13 +237,13 @@ public:
   }
 };
 
+
 class avdecc_join_msg_t:
   public avdecc_msg_t
 {
 public:
   avdecc_join_msg_t(): avdecc_msg_t(AVDECC_THREAD_JOIN) {}
 };
-
 
 
 class avdecc_t
@@ -278,6 +282,7 @@ protected:
     
     return 0;
   }
+
 
   static int _process(const void *self, struct raw_context *net, const struct jdksavdecc_frame *frame)
   {
