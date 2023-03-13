@@ -115,32 +115,29 @@ class AVDECC:
         self.handle.contents = None
 
     def send_adp(self, msg, entity):
-        res = AVDECC_send_adp(self.handle, avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity)
+        res = AVDECC_send_adp(self.handle, msg, entity)
         assert res == 0
 
-    def recv_adp(self, frame_ptr, adpdu_ptr):
-        adpdu = adpdu_ptr.contents
+    def recv_adp(self, adpdu):
         print("ADP:", adpdu_str(adpdu))
 
-    def recv_acmp(self, frame_ptr, acmpdu_ptr):
-        acmpdu = acmpdu_ptr.contents
+    def recv_acmp(self, acmpdu):
         print("ACMP:", acmpdu)
 
-    def recv_aecp_aem(self, frame_ptr, aecpdu_aem_ptr):
-        aecpdu_aem = aecpdu_aem_ptr.contents
+    def recv_aecp_aem(self, aecpdu_aem):
         print("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
 
     @avdecc_api.AVDECC_ADP_CALLBACK
     def _adp_aecp(handle, frame_ptr, adpdu_ptr):
-        AVDECC.handles[handle.contents].recv_adp(frame_ptr, adpdu_ptr)
+        AVDECC.handles[handle.contents].recv_adp(adpdu_ptr.contents)
 
     @avdecc_api.AVDECC_ACMP_CALLBACK
     def _acmp_cb(handle, frame_ptr, acmpdu_ptr):
-        AVDECC.handles[handle.contents].recv_acmp(frame_ptr, acmpdu_ptr)
+        AVDECC.handles[handle.contents].recv_acmp(acmpdu_ptr.contents)
 
     @avdecc_api.AVDECC_AECP_AEM_CALLBACK
     def _aecp_aem_cb(handle, frame_ptr, aecpdu_aem_ptr):
-        AVDECC.handles[handle.contents].recv_acecp_aem(frame_ptr, aecpdu_aem_ptr)
+        AVDECC.handles[handle.contents].recv_acecp_aem(aecpdu_aem_ptr.contents)
 
 
 def chk_err(res):
