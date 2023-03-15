@@ -51,10 +51,11 @@ interface.opp: interface.cpp interface.h Makefile
 $(DYLIB): $(OBJS)
 	$(CXX) $^ $(LD_FLAGS) -o $@
 
-$(APIMOD): interface.h $(DYLIB) Makefile $(APIMOD).patch
+$(APIMOD): interface.h $(DYLIB) Makefile
 	clang2py -l$(DYLIB) -i --clang-args="$(CLANG_FLAGS)" $< -o $@
 	test -s $@
-	patch -p0 $@ $(APIMOD).patch
+	./patch.sh "$@"
+#	patch -p0 $@ $(APIMOD).patch
 
 clean:
 	rm -f $(OBJS) $(DYLIB) $(APIMOD)

@@ -85,13 +85,13 @@ class AVDECC:
         AVDECC.handles[self.handle.contents] = self  # register instance
 
         adpdu = avdecc_api.struct_jdksavdecc_adpdu(
-            entity_model_id = avdecc_api.struct_jdksavdecc_eui64(value = (1,2,3,4,5,6,7,8)),
-            entity_capabilities=avdecc_api.JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED+
+            entity_model_id = avdecc_api.struct_jdksavdecc_eui64(value=(1,2,3,4,5,6,7,8)),
+            entity_capabilities=avdecc_api.JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED +
                                 avdecc_api.JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED,
             listener_stream_sinks=16,
-            listener_capabilities=avdecc_api.JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED+
+            listener_capabilities=avdecc_api.JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED +
                                   avdecc_api.JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK,
-            gptp_grandmaster_id = avdecc_api.struct_jdksavdecc_eui64(value = (1,2,3,4,5,6,7,8)),
+            gptp_grandmaster_id=avdecc_api.struct_jdksavdecc_eui64(value=(1,2,3,4,5,6,7,8)),
         )
         res = AVDECC_set_adpdu(self.handle, adpdu)
         assert res == 0
@@ -128,7 +128,7 @@ class AVDECC:
         print("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
 
     @avdecc_api.AVDECC_ADP_CALLBACK
-    def _adp_aecp(handle, frame_ptr, adpdu_ptr):
+    def _adp_cb(handle, frame_ptr, adpdu_ptr):
         AVDECC.handles[handle.contents].recv_adp(adpdu_ptr.contents)
 
     @avdecc_api.AVDECC_ACMP_CALLBACK
@@ -160,8 +160,8 @@ if __name__ == '__main__':
 #    parser.add_argument("args", nargs='*')
     args = parser.parse_args()
 
-    with AVDECC(intf=args.intf, entity=args.entity,
-                debug=args.debug, verbose=args.verbose) as avdecc:
+    with AVDECC(intf=args.intf, #entity=args.entity,
+                debug=args.debug, verbosity=args.verbose) as avdecc:
 
         while(True):
             time.sleep(0.1)
