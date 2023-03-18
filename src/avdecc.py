@@ -70,19 +70,18 @@ def aecpdu_aem_str(aecpdu_aem):
 class AVDECC:
     handles = {}
 
-    def __init__(self, intf, debug=False, verbosity=0):
+    def __init__(self, intf, entity=0, debug=False, verbosity=0):
         self.intf = intf
         self.debug = debug
         self.verbosity = verbosity
         self.handle = ctypes.c_void_p()
-        self.entity = None
+        self.entity = entity
 
     def __enter__(self):
         intf = ctypes.c_char_p(self.intf.encode())
         res = AVDECC_create(ctypes.byref(self.handle), intf, AVDECC._adp_cb, AVDECC._acmp_cb, AVDECC._aecp_aem_cb)
         assert res == 0
-        assert self.handle
-        AVDECC.handles[self.handle.contents] = self  # register instance
+        AVDECC.handles[self.handle.value] = self  # register instance
 
         adpdu = avdecc_api.struct_jdksavdecc_adpdu(
             entity_model_id = avdecc_api.struct_jdksavdecc_eui64(value=(1,2,3,4,5,6,7,8)),
@@ -103,7 +102,10 @@ class AVDECC:
 
         return self
 
-    def __exit__(self):
+    def __exit__(self, exception_type, exception_value, traceback):
+        if not issubclass(exception_type, KeyboardInterrupt):
+            print("Exception:", exception_value)
+        
         self.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity)
 
         # we need a bit of time so that the previous message can get through
@@ -111,8 +113,8 @@ class AVDECC:
 
         res = AVDECC_destroy(self.handle)
         assert res == 0
-        del AVDECC.handles[self.handle.contents]  # unregister instance
-        self.handle.contents = None
+        del AVDECC.handles[self.handle.value]  # unregister instance
+        self.handle.value = None
 
     def send_adp(self, msg, entity):
         res = AVDECC_send_adp(self.handle, msg, entity)
@@ -160,7 +162,7 @@ if __name__ == '__main__':
 #    parser.add_argument("args", nargs='*')
     args = parser.parse_args()
 
-    with AVDECC(intf=args.intf, #entity=args.entity,
+    with AVDECC(intf=args.intf, entity=args.entity,
                 debug=args.debug, verbosity=args.verbose) as avdecc:
 
         while(True):
