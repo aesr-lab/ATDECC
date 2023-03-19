@@ -71,10 +71,10 @@ def aecpdu_aem_str(aecpdu_aem):
 class AVDECC:
     handles = {}
 
-    def __init__(self, intf, entity=0, debug=False, verbosity=0):
+    def __init__(self, intf, entity=0, discover=False, debug=False):
         self.intf = intf
         self.debug = debug
-        self.verbosity = verbosity
+        self.discover = discover
         self.handle = ctypes.c_void_p()
         self.entity = entity
 
@@ -159,18 +159,18 @@ if __name__ == '__main__':
                         help="Network interface (default='%(default)s')")
     parser.add_argument("-e", "--entity", type=int, default=0x1122334455667788,
                         help="Entity ID (default='%(default)x')")
-#    parser.add_argument("--discover", action='store_true', help="Discover AVDECC entities")
+    parser.add_argument("--discover", action='store_true', help="Discover AVDECC entities")
     parser.add_argument('-d', "--debug", action='store_true', default=0,
                         help="Enable debug mode")
-    parser.add_argument('-v', "--verbose", action='count', default=0,
-                        help="Increase verbosity")
+#    parser.add_argument('-v', "--verbose", action='count', default=0,
+#                        help="Increase verbosity")
 #    parser.add_argument("args", nargs='*')
     args = parser.parse_args()
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    with AVDECC(intf=args.intf, entity=args.entity, verbosity=args.verbose) as avdecc:
+    with AVDECC(intf=args.intf, entity=args.entity, discover=args.discover) as avdecc:
 
         while(True):
             time.sleep(0.1)
