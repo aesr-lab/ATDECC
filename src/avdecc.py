@@ -100,7 +100,7 @@ class AVDECC:
 
         self.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity)
 
-        if False:
+        if True:
             self.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER, 0)
 
         return self
@@ -108,7 +108,7 @@ class AVDECC:
     def __exit__(self, exception_type, exception_value, traceback):
         if not issubclass(exception_type, KeyboardInterrupt):
             print("Exception:", exception_value)
-        
+
         self.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity)
 
         # we need a bit of time so that the previous message can get through
@@ -136,15 +136,15 @@ class AVDECC:
 
     @avdecc_api.AVDECC_ADP_CALLBACK
     def _adp_cb(handle, frame_ptr, adpdu_ptr):
-        AVDECC.handles[handle.contents].recv_adp(adpdu_ptr.contents)
+        AVDECC.handles[handle].recv_adp(adpdu_ptr.contents)
 
     @avdecc_api.AVDECC_ACMP_CALLBACK
     def _acmp_cb(handle, frame_ptr, acmpdu_ptr):
-        AVDECC.handles[handle.contents].recv_acmp(acmpdu_ptr.contents)
+        AVDECC.handles[handle].recv_acmp(acmpdu_ptr.contents)
 
     @avdecc_api.AVDECC_AECP_AEM_CALLBACK
     def _aecp_aem_cb(handle, frame_ptr, aecpdu_aem_ptr):
-        AVDECC.handles[handle.contents].recv_acecp_aem(aecpdu_aem_ptr.contents)
+        AVDECC.handles[handle].recv_acecp_aem(aecpdu_aem_ptr.contents)
 
 
 def chk_err(res):
@@ -174,6 +174,3 @@ if __name__ == '__main__':
 
         while(True):
             time.sleep(0.1)
-            
-#    except KeyboardInterrupt:
-#        pass
