@@ -2,8 +2,11 @@
 
 function patch {
 	tmpfile=$(mktemp)
-	cp "${1}" "$tmpfile"
-	sed -e "s/${2}/${3}/g" "$tmpfile" > "$1"
+	if sed -e "s/${2}/${3}/g" "${1}" > "$tmpfile"; then
+		cp "$tmpfile" "${1}"
+	else
+		echo "Sed s/${2}/${3}/g failed" >> /dev/stderr
+	fi
 	rm -f "$tmpfile"
 }
 
