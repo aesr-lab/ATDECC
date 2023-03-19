@@ -6,7 +6,10 @@ cp "$1" "$tmpfile"
 sed -e 's/^.*0().*$/#&/g' "$tmpfile" > "$1"
 
 cp "$1" "$tmpfile"
-sed -e 's/^uint16_t = .*/uint16_t = ctypes.c_uint16/g' "$tmpfile" > "$1"
+sed -e 's/^uint16_t = .*$/uint16_t = ctypes.c_uint16/g' "$tmpfile" > "$1"
+
+cp "$1" "$tmpfile"
+sed -e 's/^const_string_t = .*$/const_string_t = ctypes.POINTER(ctypes.c_char)/g' "$tmpfile" > "$1"
 
 rm -f "$tmpfile"
 
