@@ -4,6 +4,7 @@ import ctypes
 import avdecc_api
 from avdecc_api import AVDECC_create, AVDECC_destroy, AVDECC_send_adp, AVDECC_set_adpdu, AVDECC_send_acmp, AVDECC_send_aecp
 import time
+import logging
 
 def eui64_str(eui64):
     return ":".join(f"{x:02x}" for x in eui64.value)
@@ -81,6 +82,7 @@ class AVDECC:
         intf = ctypes.c_char_p(self.intf.encode())
         res = AVDECC_create(ctypes.byref(self.handle), intf, AVDECC._adp_cb, AVDECC._acmp_cb, AVDECC._aecp_aem_cb)
         assert res == 0
+        logging.debug("AVDECC_create done")
         AVDECC.handles[self.handle.value] = self  # register instance
 
         adpdu = avdecc_api.struct_jdksavdecc_adpdu(
@@ -93,6 +95,7 @@ class AVDECC:
             gptp_grandmaster_id=avdecc_api.struct_jdksavdecc_eui64(value=(1,2,3,4,5,6,7,8)),
         )
         res = AVDECC_set_adpdu(self.handle, adpdu)
+        logging.debug("AVDECC_set_adpdu done")
         assert res == 0
 
         self.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity)
@@ -112,12 +115,14 @@ class AVDECC:
         time.sleep(0.5)
 
         res = AVDECC_destroy(self.handle)
+        logging.debug("AVDECC_destroy done")
         assert res == 0
         del AVDECC.handles[self.handle.value]  # unregister instance
         self.handle.value = None
 
     def send_adp(self, msg, entity):
         res = AVDECC_send_adp(self.handle, msg, entity)
+        logging.debug(f"AVDECC_send_adp {msg} done")
         assert res == 0
 
     def recv_adp(self, adpdu):
@@ -162,8 +167,10 @@ if __name__ == '__main__':
 #    parser.add_argument("args", nargs='*')
     args = parser.parse_args()
 
-    with AVDECC(intf=args.intf, entity=args.entity,
-                debug=args.debug, verbosity=args.verbose) as avdecc:
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+
+    with AVDECC(intf=args.intf, entity=args.entity, verbosity=args.verbose) as avdecc:
 
         while(True):
             time.sleep(0.1)
