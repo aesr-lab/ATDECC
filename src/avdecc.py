@@ -100,7 +100,7 @@ class AVDECC:
 
         self.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity)
 
-        if True:
+        if self.discover:
             self.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER, 0)
 
         return self
