@@ -7,6 +7,7 @@ import time
 import logging
 from threading import Thread, Event
 import random
+import netifaces
 
 
 def eui64_str(eui64):
@@ -83,25 +84,89 @@ def uint64_to_eui64(other):
         ( other >> ( 0 * 8 ) ) & 0xff
     )
 
+
 def eui64_to_uint64(value):
-    return ( value[0] << ( 7 * 8 ))+
-           ( value[1] << ( 6 * 8 ))+
-           ( value[2] << ( 5 * 8 ))+
-           ( value[3] << ( 4 * 8 ))+
-           ( value[4] << ( 3 * 8 ))+
-           ( value[5] << ( 2 * 8 ))+
-           ( value[6] << ( 1 * 8 ))+
+    return ( value[0] << ( 7 * 8 ))+ \
+           ( value[1] << ( 6 * 8 ))+ \
+           ( value[2] << ( 5 * 8 ))+ \
+           ( value[3] << ( 4 * 8 ))+ \
+           ( value[4] << ( 3 * 8 ))+ \
+           ( value[5] << ( 2 * 8 ))+ \
+           ( value[6] << ( 1 * 8 ))+ \
            ( value[7] << ( 0 * 8 ))
 
+
+def uint64_to_eui48(other):
+    assert ( other >> ( 6 * 8 ) ) == 0
+    return (
+        ( other >> ( 5 * 8 ) ) & 0xff,
+        ( other >> ( 4 * 8 ) ) & 0xff,
+        ( other >> ( 3 * 8 ) ) & 0xff,
+        ( other >> ( 2 * 8 ) ) & 0xff,
+        ( other >> ( 1 * 8 ) ) & 0xff,
+        ( other >> ( 0 * 8 ) ) & 0xff
+    )
+
+
+def eui48_to_uint64(value):
+    return ( value[0] << ( 5 * 8 ))+ \
+           ( value[1] << ( 4 * 8 ))+ \
+           ( value[2] << ( 3 * 8 ))+ \
+           ( value[3] << ( 2 * 8 ))+ \
+           ( value[4] << ( 1 * 8 ))+ \
+           ( value[5] << ( 0 * 8 ))
+
+
+def mac_to_eui64(mac):
+    # see https://www.geeksforgeeks.org/ipv6-eui-64-extended-unique-identifier/
+    if type(mac) is int: #uint64 format
+        mac = uint64_to_eui48(mac)
+    elif type(mac) is str:
+        if ':' in mac:
+            mac = mac.split(':')
+        elif '-' in mac:
+            mac = mac.split('-')
+        else:
+            raise ValueError('Mac address format unknown')
+        # convert hex digits to ints
+        mac = [int(m, 16) for m in mac]
+    elif type(mac) not in ('list', 'tuple'):
+        raise TypeError('Mac address data type unknown')
+
+    return (mac[0]^0x02, mac[1], mac[2], 0xff, 0xf0, mac[3], mac[4], mac[5])
+
+
+def mac_to_uint64(mac):
+    return eui64_to_uint64(mac_to_eui64(mac))
+
+
+def intf_to_mac(intf):
+    """
+    return MAC of network interface (raises exception if not available)
+    """
+    addrs = netifaces.ifaddresses(intf)
+    return addrs[netifaces.AF_LINK][0]['addr']
+
+
+def intf_to_ip(intf):
+    """
+    return IP of network interface (raises exception if not available)
+    """
+    addrs = netifaces.ifaddresses(intf)
+    return addrs[netifaces.AF_INET][0]['addr']
+    
+    
 
 class EntityInfo:
     """
     IEEE 1722.1-2021, section 6.2.7
+    
+    All ids are stored in uint64 format (not EUIxx) 
     """
 
     def __init__(self, 
                  valid_time=62,
-                 entity_id=None,
+                 entity_id=0,
                  entity_model_id=0,
                  entity_capabilities=0,
                  talker_stream_sources=0,
@@ -116,8 +181,8 @@ class EntityInfo:
                  interface_index=0,
                  association_id=0,
                  ):
-        self.valid_time = valid_time # MacOS standard
-        self.entity_id = entity_id or self.entityID_from_mac(mac_address)
+        self.valid_time = valid_time # in seconds
+        self.entity_id = entity_id
         self.entity_model_id = entity_model_id # Section 6.2.2.8.
         self.entity_capabilities = entity_capabilities
         self.talker_stream_sources = talker_stream_sources
@@ -158,14 +223,65 @@ class EntityInfo:
         )
 
 
-#def entityID_from_mac(mac_address):
-#    raise NotImplementedError()
+class jdksInterface:
+    handles = {}
+    
+    def __init__(self, ifname):
+        self.ifname = ifname
+
+        self.handle = ctypes.c_void_p()
+        intf = ctypes.c_char_p(self.intf.encode())
+        res = AVDECC_create(ctypes.byref(self.handle), 
+                            ifname, 
+                            jdksInterface._adp_cb, 
+                            jdksInterface._acmp_cb, 
+                            jdksInterface._aecp_aem_cb
+                            )
+        assert res == 0
+        logging.debug("AVDECC_create done")
+        jdksInterface.handles[self.handle.value] = self  # register instance
+    
+    def __del__(self):
+        res = AVDECC_destroy(self.handle)
+        logging.debug("AVDECC_destroy done")
+        assert res == 0
+        del jdksInterface.handles[self.handle.value]  # unregister instance
+        self.handle.value = None
+    
+    
+    def send_adp(self, msg, entity):
+        res = AVDECC_send_adp(self.handle, msg, entity)
+        logging.debug(f"AVDECC_send_adp {msg} done")
+        assert res == 0
+
+    def recv_adp(self, adpdu):
+        print("ADP:", adpdu_str(adpdu))
+
+    def recv_acmp(self, acmpdu):
+        print("ACMP:", acmpdu)
+
+    def recv_aecp_aem(self, aecpdu_aem):
+        print("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
+
+    @avdecc_api.AVDECC_ADP_CALLBACK
+    def _adp_cb(handle, frame_ptr, adpdu_ptr):
+        jdksInterface.handles[handle].recv_adp(adpdu_ptr.contents)
+
+    @avdecc_api.AVDECC_ACMP_CALLBACK
+    def _acmp_cb(handle, frame_ptr, acmpdu_ptr):
+        jdksInterface.handles[handle].recv_acmp(acmpdu_ptr.contents)
+
+    @avdecc_api.AVDECC_AECP_AEM_CALLBACK
+    def _aecp_aem_cb(handle, frame_ptr, aecpdu_aem_ptr):
+        jdksInterface.handles[handle].recv_acecp_aem(aecpdu_aem_ptr.contents)
 
 
 class Interface:
     def __init__(self, ifname):
         self.ifname = ifname
+        self.mac = intf_to_mac(self.ifname) # MAC as string
 
+        
 
 class GlobalStateMachine:
     """
@@ -199,7 +315,7 @@ class AdvertisingEntityStateMachine(
         self.doTerminate = False
         self.event = Event()
         self.random = random.Random(
-            seed=self.entityInfo.mac_address+int(self.currentTime*10**6)
+            seed=self.entityInfo.entity_id+int(self.currentTime*10**6)
         )
         self.interface_state_machines = interface_state_machines
 
@@ -276,13 +392,15 @@ class AdvertisingInterfaceStateMachine(Thread):
         """
         The txEntityAvailable function transmits an ENTITY_AVAILABLE message
         """
-        raise NotImplementedError()
+        logging.info("ENTITY_AVAILABLE")
+#        raise NotImplementedError()
 
     def txEntityDeparting(self):
         """
         The txEntityAvailable function transmits an ENTITY_DEPARTING message
         """
-        raise NotImplementedError()
+        logging.info("ENTITY_DEPARTING")
+#        raise NotImplementedError()
 
     def run(self):
         while True:
@@ -435,6 +553,43 @@ class DiscoveryInterfaceStateMachine(
 
 
 class AVDECC:
+
+    def __init__(self, intf, discover=False):
+
+        self.intf = Interface(intf)
+        
+        # generate entity_id from MAC
+        entity_id = mac_to_uint64(self.intf.mac)
+        # create EntityInfo
+        self.entity_info = EntityInfo(valid_time=valid_time, entity_id=entity_id)
+
+        # create AdvertisingInterfaceStateMachine
+        self.adv_intf_sm = AdvertisingInterfaceStateMachine(interfaces=(self.intf,))
+        
+        # create AdvertisingEntityStateMachine
+        self.adv_sm = AdvertisingEntityStateMachine(
+                        entity_info=self.entity_info,
+                        interface_state_machines=(self.adv_intf_sm,),
+                        )
+
+    def __enter__(self):
+        self.adv_intf_sm.start()
+        self.adv_sm.start()
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        if not issubclass(exception_type, KeyboardInterrupt):
+            print("Exception:", exception_value)
+
+        while self.adv_intf_sm.is_alive() || self.adv_sm.is_alive():
+            self.adv_intf_sm.join(0.1)
+            self.adv_sm.join(0.1)
+
+        # we need a bit of time so that the departing message can get through
+        time.sleep(0.5)
+
+
+class xxAVDECC:
     handles = {}
 
     def __init__(self, intf, entity=0, discover=False, debug=False):
@@ -521,6 +676,8 @@ class AVDECC:
         AVDECC.handles[handle].recv_acecp_aem(aecpdu_aem_ptr.contents)
 
 
+
+
 def chk_err(res):
     if res:
         raise RuntimeError("Error", res)
@@ -531,8 +688,6 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("-i", "--intf", type=str, default='eth0',
                         help="Network interface (default='%(default)s')")
-    parser.add_argument("-e", "--entity", type=int, default=0x1122334455667788,
-                        help="Entity ID (default='%(default)x')")
     parser.add_argument("--discover", action='store_true', help="Discover AVDECC entities")
     parser.add_argument('-d', "--debug", action='store_true', default=0,
                         help="Enable debug mode")
@@ -544,7 +699,7 @@ if __name__ == '__main__':
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    with AVDECC(intf=args.intf, entity=args.entity, discover=args.discover) as avdecc:
+    with AVDECC(intf=args.intf, discover=args.discover) as avdecc:
 
         while(True):
             time.sleep(0.1)

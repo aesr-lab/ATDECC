@@ -11,6 +11,8 @@
 #include "queue.hpp"
 
 
+static struct jdksavdecc_eui64 zero = {0, 0, 0, 0, 0, 0, 0, 0};
+
 static bool _frame_destcheck(struct raw_context *net, const struct jdksavdecc_frame *frame)
 {
     return
@@ -30,8 +32,6 @@ static int _adp_check_listener(
     if (frame->payload[0] == JDKSAVDECC_1722A_SUBTYPE_ADP ) {
         bzero( adpdu, sizeof( *adpdu ) );
         if ( jdksavdecc_adpdu_read( adpdu, frame->payload, 0, frame->length ) > 0 ) {
-            struct jdksavdecc_eui64 zero;
-            bzero( &zero, sizeof( zero ) );
             if ( target_entity_id && jdksavdecc_eui64_compare( &zero, target_entity_id ) != 0 ) {
                 if ( jdksavdecc_eui64_compare( &adpdu->header.entity_id, target_entity_id ) == 0 )
                     r = 0;
@@ -58,9 +58,6 @@ static int _acmp_check_listener(
         bzero( acmpdu, sizeof( *acmpdu ) );
         if ( jdksavdecc_acmpdu_read( acmpdu, frame->payload, 0, frame->length ) > 0 )
         {
-            struct jdksavdecc_eui64 zero;
-            bzero( &zero, sizeof( zero ) );
-
             if ( acmpdu->header.message_type == JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE
                  || acmpdu->header.message_type == JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE
                  || acmpdu->header.message_type == JDKSAVDECC_ACMP_MESSAGE_TYPE_GET_RX_STATE_RESPONSE )
