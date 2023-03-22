@@ -380,11 +380,11 @@ class AdvertisingInterfaceStateMachine(Thread):
         self.interfaces = interfaces
         self.event = Event()
         
-	def performTerminate(self):
+    def performTerminate(self):
         self.doTerminate = True
         self.event.set()
         
-	def performAdvertise(self):
+    def performAdvertise(self):
         self.doAdvertise = True
         self.event.set()
         
@@ -442,7 +442,7 @@ class DiscoveryStateMachine(
         self.entities = {}
         self.interfaces = []
 
-	def performTerminate(self):
+    def performTerminate(self):
         self.doTerminate = True
         self.event.set()
         
@@ -531,7 +531,7 @@ class DiscoveryInterfaceStateMachine(
                 # RECEIVED DISCOVER
                 self.rcvdDiscover = False
                 
-                if entity_id == 0 || entity_id == entityInfo.entity_id:
+                if entity_id == 0 or entity_id == entityInfo.entity_id:
                     # DISCOVER
                     self.needsAdvertise = True
             
@@ -581,7 +581,7 @@ class AVDECC:
         if not issubclass(exception_type, KeyboardInterrupt):
             print("Exception:", exception_value)
 
-        while self.adv_intf_sm.is_alive() || self.adv_sm.is_alive():
+        while self.adv_intf_sm.is_alive() or self.adv_sm.is_alive():
             self.adv_intf_sm.join(0.1)
             self.adv_sm.join(0.1)
 
