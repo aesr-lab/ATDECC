@@ -309,7 +309,7 @@ class AdvertisingEntityStateMachine(
     """
 
     def __init__(self, entity_info, interface_state_machines):
-        self.super(AdvertisingEntityStateMachine).__init__(entity_info)
+        super(AdvertisingEntityStateMachine, self).__init__(entity_info)
         self.reannouncementTimerTimeout = 0
         self.needsAdvertise = False
         self.doTerminate = False
@@ -561,7 +561,7 @@ class AVDECC:
         # generate entity_id from MAC
         entity_id = mac_to_uint64(self.intf.mac)
         # create EntityInfo
-        self.entity_info = EntityInfo(valid_time=valid_time, entity_id=entity_id)
+        self.entity_info = EntityInfo(entity_id=entity_id)
 
         # create AdvertisingInterfaceStateMachine
         self.adv_intf_sm = AdvertisingInterfaceStateMachine(interfaces=(self.intf,))
