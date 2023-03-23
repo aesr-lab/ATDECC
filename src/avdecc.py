@@ -214,12 +214,16 @@ class EntityInfo:
             listener_capabilities=self.listener_capabilities,
             controller_capabilities=self.controller_capabilities,
             available_index=self.available_index,
-            gptp_grandmaster_id=self.gptp_grandmaster_id,
+            gptp_grandmaster_id=avdecc_api.struct_jdksavdecc_eui64(
+                uint64_to_eui64(self.gptp_grandmaster_id)
+            ),
             gptp_domain_number=self.gptp_domain_number,
             current_configuration_index=self.current_configuration_index,
             identify_control_index=self.identify_control_index,
             interface_index=self.interface_index,
-            association_id=self.association_id,
+            association_id=avdecc_api.struct_jdksavdecc_eui64(
+                uint64_to_eui64(self.association_id)
+            ),
         )
 
 
@@ -230,12 +234,12 @@ class jdksInterface:
         self.ifname = ifname
 
         self.handle = ctypes.c_void_p()
-        intf = ctypes.c_char_p(self.intf.encode())
+        intf = ctypes.c_char_p(self.ifname.encode())
         res = AVDECC_create(ctypes.byref(self.handle), 
-                            ifname, 
-                            jdksInterface._adp_cb, 
-                            jdksInterface._acmp_cb, 
-                            jdksInterface._aecp_aem_cb
+                            intf, 
+                            self._adp_cb, 
+                            self._acmp_cb, 
+                            self._aecp_aem_cb
                             )
         assert res == 0
         logging.debug("AVDECC_create done")
@@ -245,23 +249,26 @@ class jdksInterface:
         res = AVDECC_destroy(self.handle)
         logging.debug("AVDECC_destroy done")
         assert res == 0
-        del jdksInterface.handles[self.handle.value]  # unregister instance
+        del self.handles[self.handle.value]  # unregister instance
         self.handle.value = None
     
-    
     def send_adp(self, msg, entity):
-        res = AVDECC_send_adp(self.handle, msg, entity)
-        logging.debug(f"AVDECC_send_adp {msg} done")
+
+        res = AVDECC_set_adpdu(self.handle, entity.get_adpdu())
         assert res == 0
 
+        res = AVDECC_send_adp(self.handle, msg, avdecc_api.uint64_t(entity.entity_id))
+        assert res == 0
+        logging.debug(f"AVDECC_send_adp {msg} done")
+
     def recv_adp(self, adpdu):
-        print("ADP:", adpdu_str(adpdu))
+        logging.info("ADP:", adpdu_str(adpdu))
 
     def recv_acmp(self, acmpdu):
-        print("ACMP:", acmpdu)
+        logging.info("ACMP:", acmpdu)
 
     def recv_aecp_aem(self, aecpdu_aem):
-        print("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
+        logging.info("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
 
     @avdecc_api.AVDECC_ADP_CALLBACK
     def _adp_cb(handle, frame_ptr, adpdu_ptr):
@@ -276,20 +283,16 @@ class jdksInterface:
         jdksInterface.handles[handle].recv_acecp_aem(aecpdu_aem_ptr.contents)
 
 
-class Interface:
+class Interface(jdksInterface):
     def __init__(self, ifname):
-        self.ifname = ifname
+        super(Interface, self).__init__(ifname)
         self.mac = intf_to_mac(self.ifname) # MAC as string
 
-        
 
 class GlobalStateMachine:
     """
     IEEE 1722.1-2021, section 6.2.3
     """
-    def __init__(self):
-        self.entityInfo = EntityInfo()
-        
     @property
     def currentTime(self):
         """
@@ -309,14 +312,14 @@ class AdvertisingEntityStateMachine(
     """
 
     def __init__(self, entity_info, interface_state_machines):
-        super(AdvertisingEntityStateMachine, self).__init__(entity_info)
+        super(AdvertisingEntityStateMachine, self).__init__()
+        self.entity_info = entity_info
         self.reannouncementTimerTimeout = 0
         self.needsAdvertise = False
         self.doTerminate = False
         self.event = Event()
-        self.random = random.Random(
-            seed=self.entityInfo.entity_id+int(self.currentTime*10**6)
-        )
+        self.random = random.Random()
+        self.random.seed(self.entity_info.entity_id+int(self.currentTime*10**6))
         self.interface_state_machines = interface_state_machines
 
     def performAdvertise(self):
@@ -325,6 +328,7 @@ class AdvertisingEntityStateMachine(
 
     def performTerminate(self):
         self.doTerminate = True
+        logging.debug("doTerminate")
         self.event.set()
 
     def sendAvailable(self):
@@ -344,9 +348,11 @@ class AdvertisingEntityStateMachine(
         uniform distribution across the range of zero (0) to 1/5 of the 
         valid time of the ATDECC Entity in milliseconds.
         """
-        return self.random.uniform(0, self.entityInfo.valid_time/5.)
+        return self.random.uniform(0, self.entity_info.valid_time/5.)
 
     def run(self):
+        logging.debug("AdvertisingEntityStateMachine: Starting thread")
+
         self.entity_info.available_index = 0
 
         while True:
@@ -359,12 +365,14 @@ class AdvertisingEntityStateMachine(
 
             self.needsAdvertise = False
 
-            self.event.wait(max(1, self.entityInfo.valid_time/2))
+            self.event.wait(max(1, self.entity_info.valid_time/2))
             if self.doTerminate:
                 break
             self.event.clear()
 
-            self.entityInfo.available_index += 1
+            self.entity_info.available_index += 1
+
+        logging.debug("AdvertisingEntityStateMachine: Ending thread")
 
 
 class AdvertisingInterfaceStateMachine(Thread):
@@ -374,7 +382,9 @@ class AdvertisingInterfaceStateMachine(Thread):
     for each AVB interface of the ATDECC Entity being published in the End Station
     """
     
-    def __init__(self, interfaces):
+    def __init__(self, entity_info, interfaces):
+        super(AdvertisingInterfaceStateMachine, self).__init__()
+        self.entity_info = entity_info
         self.doTerminate = False
         self.doAdvertise = False
         self.interfaces = interfaces
@@ -382,6 +392,7 @@ class AdvertisingInterfaceStateMachine(Thread):
         
     def performTerminate(self):
         self.doTerminate = True
+        logging.debug("doTerminate")
         self.event.set()
         
     def performAdvertise(self):
@@ -392,17 +403,19 @@ class AdvertisingInterfaceStateMachine(Thread):
         """
         The txEntityAvailable function transmits an ENTITY_AVAILABLE message
         """
-        logging.info("ENTITY_AVAILABLE")
-#        raise NotImplementedError()
+        for intf in self.interfaces:
+            intf.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity_info)
 
     def txEntityDeparting(self):
         """
         The txEntityAvailable function transmits an ENTITY_DEPARTING message
         """
-        logging.info("ENTITY_DEPARTING")
-#        raise NotImplementedError()
+        for intf in self.interfaces:
+            intf.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity_info)
 
     def run(self):
+        logging.debug("AdvertisingInterfaceStateMachine: Starting thread")
+
         while True:
             self.event.wait(1)
             # signalled
@@ -415,6 +428,8 @@ class AdvertisingInterfaceStateMachine(Thread):
                 self.doAdvertise = False
 
         self.txEntityDeparting()
+
+        logging.debug("AdvertisingInterfaceStateMachine: Ending thread")
 
 
 class DiscoveryStateMachine(
@@ -554,17 +569,20 @@ class DiscoveryInterfaceStateMachine(
 
 class AVDECC:
 
-    def __init__(self, intf, discover=False):
+    def __init__(self, intf, valid_time=62, discover=False):
 
         self.intf = Interface(intf)
         
         # generate entity_id from MAC
         entity_id = mac_to_uint64(self.intf.mac)
         # create EntityInfo
-        self.entity_info = EntityInfo(entity_id=entity_id)
+        self.entity_info = EntityInfo(entity_id=entity_id, valid_time=valid_time)
 
         # create AdvertisingInterfaceStateMachine
-        self.adv_intf_sm = AdvertisingInterfaceStateMachine(interfaces=(self.intf,))
+        self.adv_intf_sm = AdvertisingInterfaceStateMachine(
+                            entity_info=self.entity_info,
+                            interfaces=(self.intf,)
+                            )
         
         # create AdvertisingEntityStateMachine
         self.adv_sm = AdvertisingEntityStateMachine(
@@ -573,6 +591,7 @@ class AVDECC:
                         )
 
     def __enter__(self):
+        logging.debug("Starting threads")
         self.adv_intf_sm.start()
         self.adv_sm.start()
         return self
@@ -581,12 +600,17 @@ class AVDECC:
         if not issubclass(exception_type, KeyboardInterrupt):
             print("Exception:", exception_value)
 
+        logging.debug("Trying to join threads")
+        self.adv_sm.performTerminate()
+        self.adv_intf_sm.performTerminate()
         while self.adv_intf_sm.is_alive() or self.adv_sm.is_alive():
             self.adv_intf_sm.join(0.1)
             self.adv_sm.join(0.1)
 
+        logging.debug("Successfully joined threads")
+
         # we need a bit of time so that the departing message can get through
-        time.sleep(0.5)
+#        time.sleep(0.5)
 
 
 class xxAVDECC:
@@ -688,6 +712,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("-i", "--intf", type=str, default='eth0',
                         help="Network interface (default='%(default)s')")
+    parser.add_argument("-v", "--valid", type=float, default=62, help="Valid time in seconds (default=%(default)s)")
     parser.add_argument("--discover", action='store_true', help="Discover AVDECC entities")
     parser.add_argument('-d', "--debug", action='store_true', default=0,
                         help="Enable debug mode")
@@ -699,7 +724,7 @@ if __name__ == '__main__':
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    with AVDECC(intf=args.intf, discover=args.discover) as avdecc:
+    with AVDECC(intf=args.intf, valid_time=args.valid, discover=args.discover) as avdecc:
 
         while(True):
             time.sleep(0.1)
