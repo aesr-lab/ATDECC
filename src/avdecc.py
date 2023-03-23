@@ -10,20 +10,47 @@ import random
 import netifaces
 
 
-def eui64_str(eui64):
-    return ":".join(f"{x:02x}" for x in eui64.value)
+api_dicts = {}
+
+def get_api_dict(enum_dict):
+    try:
+        return api_dicts[enum_dict]
+    except KeyError:
+        pass
+    d = []
+    for k in avdecc_api.__dict__.keys():
+        if k.startswith('c__Ea_'+enum_dict) and k.endswith("__enumvalues"):
+            d.append(k)
+    ed = [avdecc_api.__dict__[di] for di in d]
+    api_dicts[enum_dict] = ed
+    return ed 
+
+
+def api_enum(enum_dict, ix):
+    dct = get_api_dict(enum_dict)
+    for di in dct:
+        try:
+            return di[ix].replace(enum_dict, '')
+        except KeyError:
+            pass
+    raise KeyError()
+
+
+def eui_to_str(eui):
+    return ":".join(f"{x:02x}" for x in eui.value)
+
 
 def adpdu_header_str(hdr):
-    return "cd={:x} subtype={:x} sv={:x} version={:x} message_type={:x} " \
-           "valid_time={:x} control_data_length={} entity_id={}".format(
+    return "cd={:x} subtype={:x} sv={:x} version={:x} message_type={} " \
+           "valid_time={} control_data_length={} entity_id={}".format(
         hdr.cd,
         hdr.subtype,
         hdr.sv,
         hdr.version,
-        hdr.message_type,
+        api_enum('JDKSAVDECC_ADP_MESSAGE_TYPE_', hdr.message_type),
         hdr.valid_time,
         hdr.control_data_length,
-        eui64_str(hdr.entity_id),
+        eui_to_str(hdr.entity_id),
     )
 
 def adpdu_str(adpdu):
@@ -35,7 +62,7 @@ def adpdu_str(adpdu):
            "identify_control_index={:x} interface_index={:x} " \
            "association_id={}".format(
         adpdu_header_str(adpdu.header),
-        eui64_str(adpdu.entity_model_id),
+        eui_to_str(adpdu.entity_model_id),
         adpdu.entity_capabilities,
         adpdu.talker_stream_sources,
         adpdu.talker_capabilities,
@@ -43,30 +70,64 @@ def adpdu_str(adpdu):
         adpdu.listener_capabilities,
         adpdu.controller_capabilities,
         adpdu.available_index,
-        eui64_str(adpdu.gptp_grandmaster_id),
+        eui_to_str(adpdu.gptp_grandmaster_id),
         adpdu.gptp_domain_number,
         adpdu.identify_control_index,
         adpdu.interface_index,
-        eui64_str(adpdu.association_id),
+        eui_to_str(adpdu.association_id),
     )
 
-def aecpdu_aem_header_str(hdr):
-    return "cd={:x} subtype={:x} sv={:x} version={:x} message_type={:x} " \
-           "status={:x} control_data_length={} target_entity_id={}".format(
+
+def acmpdu_header_str(hdr):
+    return "cd={:x} subtype={:x} sv={:x} version={:x} message_type={} " \
+           "status={:x} control_data_length={} stream_id={}".format(
         hdr.cd,
         hdr.subtype,
         hdr.sv,
         hdr.version,
-        hdr.message_type,
+        api_enum('JDKSAVDECC_ACMP_MESSAGE_TYPE_', hdr.message_type),
         hdr.status,
         hdr.control_data_length,
-        eui64_str(hdr.target_entity_id),
+        eui_to_str(hdr.stream_id),
+    )
+
+
+def acmpdu_str(acmpdu):
+    return "hdr=[{}] controller_entity_id={} talker_entity_id={} " \
+           "listener_entity_id={} talker_unique_id={:x} " \
+           "listener_unique_id={:x} stream_dest_mac={} " \
+           "connection_count={} sequence_id={} flags={:x} stream_vlan_id={:x}".format(
+        acmpdu_header_str(acmpdu.header),
+        eui_to_str(acmpdu.controller_entity_id),
+        eui_to_str(acmpdu.talker_entity_id),
+        eui_to_str(acmpdu.listener_entity_id),
+        acmpdu.talker_unique_id,
+        acmpdu.listener_unique_id,
+        eui_to_str(acmpdu.stream_dest_mac),
+        acmpdu.connection_count,
+        acmpdu.sequence_id,
+        acmpdu.flags,
+        acmpdu.stream_vlan_id,
+    )
+
+
+def aecpdu_aem_header_str(hdr):
+    return "cd={:x} subtype={:x} sv={:x} version={:x} message_type={} " \
+           "status={} control_data_length={} target_entity_id={}".format(
+        hdr.cd,
+        hdr.subtype,
+        hdr.sv,
+        hdr.version,
+        api_enum('JDKSAVDECC_AECP_MESSAGE_TYPE_', hdr.message_type),
+        api_enum('JDKSAVDECC_ACMP_STATUS_', hdr.status),
+        hdr.control_data_length,
+        eui_to_str(hdr.target_entity_id),
     )
 
 def aecpdu_aem_str(aecpdu_aem):
     return "hdr=[{}] controller_entity_id={} sequence_id={} command_type={:x}".format(
         aecpdu_aem_header_str(aecpdu_aem.aecpdu_header.header),
-        eui64_str(aecpdu_aem.aecpdu_header.controller_entity_id),
+        eui_to_str(aecpdu_aem.aecpdu_header.controller_entity_id),
         aecpdu_aem.aecpdu_header.sequence_id,
         aecpdu_aem.command_type,
     )
@@ -202,10 +263,12 @@ class EntityInfo:
         return avdecc_api.struct_jdksavdecc_adpdu(
             header = avdecc_api.struct_jdksavdecc_adpdu_common_control_header(
                 valid_time=max(0,min(int(self.valid_time/2.+0.5),31)),
+                entity_id=avdecc_api.struct_jdksavdecc_eui64(
+                    uint64_to_eui64(self.entity_id)
+                ),
             ),
-            entity_id=self.entity_id,
             entity_model_id = avdecc_api.struct_jdksavdecc_eui64(
-                value=uint64_to_eui64(self.entity_model_id),
+                uint64_to_eui64(self.entity_model_id),
             ),
             entity_capabilities=self.entity_capabilities,
             talker_stream_sources=self.talker_stream_sources,
@@ -253,13 +316,9 @@ class jdksInterface:
         self.handle.value = None
     
     def send_adp(self, msg, entity):
-
         pdu = entity.get_adpdu()
         res = AVDECC_set_adpdu(self.handle, pdu)
         assert res == 0
-
-        logging.debug("ADPDU: %s", adpdu_str(pdu))
-
         res = AVDECC_send_adp(self.handle, msg, avdecc_api.uint64_t(entity.entity_id))
         assert res == 0
         logging.debug(f"AVDECC_send_adp {msg} done")
@@ -268,7 +327,7 @@ class jdksInterface:
         logging.info("ADP: %s", adpdu_str(adpdu))
 
     def recv_acmp(self, acmpdu):
-        logging.info("ACMP: %s", acmpdu)
+        logging.info("ACMP: %s", acmpdu_str(acmpdu))
 
     def recv_aecp_aem(self, aecpdu_aem):
         logging.info("AECP_AEM: %s", aecpdu_aem_str(aecpdu_aem))
@@ -283,7 +342,7 @@ class jdksInterface:
 
     @avdecc_api.AVDECC_AECP_AEM_CALLBACK
     def _aecp_aem_cb(handle, frame_ptr, aecpdu_aem_ptr):
-        jdksInterface.handles[handle].recv_acecp_aem(aecpdu_aem_ptr.contents)
+        jdksInterface.handles[handle].recv_aecp_aem(aecpdu_aem_ptr.contents)
 
 
 class Interface(jdksInterface):
@@ -578,6 +637,7 @@ class AVDECC:
         
         # generate entity_id from MAC
         entity_id = mac_to_uint64(self.intf.mac)
+        
         # create EntityInfo
         self.entity_info = EntityInfo(entity_id=entity_id, valid_time=valid_time)
 

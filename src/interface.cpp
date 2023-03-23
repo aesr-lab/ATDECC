@@ -54,10 +54,11 @@ static int _acmp_check_listener(
     int r = -1;
 
     if(frame->payload[0] == JDKSAVDECC_1722A_SUBTYPE_ACMP) {
-        fprintf(stderr, "ACMP\n");
+//        fprintf(stderr, "ACMP\n");
         bzero( acmpdu, sizeof( *acmpdu ) );
-        if ( jdksavdecc_acmpdu_read( acmpdu, frame->payload, 0, frame->length ) > 0 )
-        {
+        if ( jdksavdecc_acmpdu_read( acmpdu, frame->payload, 0, frame->length ) > 0 ) {
+//            fprintf(stderr, "ACMP (type %x)\n", acmpdu->header.message_type);
+#if 0
             if ( acmpdu->header.message_type == JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE
                  || acmpdu->header.message_type == JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE
                  || acmpdu->header.message_type == JDKSAVDECC_ACMP_MESSAGE_TYPE_GET_RX_STATE_RESPONSE )
@@ -84,6 +85,9 @@ static int _acmp_check_listener(
                         r = 0;
                 }
             }
+#else
+            r = 0;
+#endif
         }
     }
     return r;
@@ -159,8 +163,8 @@ public:
 
   virtual ~avdecc_msg_t() {}
 
-  avdecc_msg_e tp;
   uint16_t arg_message_type;
+  avdecc_msg_e tp;
 };
 
 
@@ -182,13 +186,11 @@ public:
     struct jdksavdecc_eui64 entity_id;
     jdksavdecc_eui64_init_from_uint64( &entity_id, arg_entity_id );
 
-    if ( adp_form_msg( frame, &adpdu, message_type_code, entity_id ) == 0 )
-    {
-        if ( raw_send( net, frame->dest_address.value, frame->payload, frame->length ) > 0 )
-        {
-          // success
-          r = 0;
-        }
+    if ( adp_form_msg( frame, &adpdu, message_type_code, entity_id ) == 0 ) {
+      if ( raw_send( net, frame->dest_address.value, frame->payload, frame->length ) > 0 ) {
+        // success
+        r = 0;
+      }
     }
     else {
       // unable to form message
