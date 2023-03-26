@@ -815,7 +815,7 @@ class ACMPListenerStateMachine(Thread):
         self.event.set()
 
     def acmp_cb(self, acmpdu):
-        acmpdu.listener_entity_id == self.my_id:
+        if acmpdu.listener_entity_id == self.my_id:
             logging.info("ACMP: %s", acmp_str(acmpdu))
 
     def validListenerUnique(self, ListenerUniqueId):
@@ -1079,7 +1079,7 @@ class ACMPListenerStateMachine(Thread):
                 logging.debug("Received Disconnect RX command")
 
                 if self.validListenerUnique(self.rcvdCmdResp.listener_unique_id):
-                    if self.listenerIsConnectedTo(self.rcvdCmdResp:
+                    if self.listenerIsConnectedTo(self.rcvdCmdResp):
                         response, status = self.disconnectListener(self.rcvdCmdResp)
                         if status == avdecc_api.JDKSAVDECC_ACMP_STATUS_SUCCESS:
                             self.txCommand(avdecc_api.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, self.rcvdCmdResp, False)
