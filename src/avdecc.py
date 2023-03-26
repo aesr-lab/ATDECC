@@ -349,7 +349,7 @@ class jdksInterface:
 #        logging.info("ADP:", adpdu_str(adpdu))
 
 #    def recv_acmp(self, acmpdu):
-#        logging.info("ACMP:", acmpdu)
+#        logging.info("ACMP:", acmpdu_str(acmpdu))
 
 #    def recv_aecp_aem(self, aecpdu_aem):
 #        logging.info("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
@@ -381,6 +381,7 @@ class Interface(jdksInterface):
         super(Interface, self).__init__(ifname)
         self.mac = intf_to_mac(self.ifname) # MAC as string
         logging.debug(f"MAC: {self.mac}")
+
 
 class GlobalStateMachine:
     """
@@ -618,6 +619,7 @@ class DiscoveryInterfaceStateMachine(
 
     def __init__(self):
         self.doTerminate = False
+        self.needsAdvertise = False
         self.currentGrandmasterID = None
         self.advertisedGrandmasterID = None
         self.rcvdDiscover = None
@@ -695,12 +697,11 @@ class InterfaceStateMachine(Thread):
         
         # DiscoveryInterfaceStateMachine
         self.rcvdDiscover = None
-        self.entityID = None
         self.currentGrandmasterID = None
         self.advertisedGrandmasterID = None
-        self.linkIsUp = False
+        self.linkIsUp = True
         self.lastLinkIsUp = False
-        self.currentConfigurationIndex = None
+        self.currentConfigurationIndex = 0
         self.advertisedConfigurationIndex = None
         
         
@@ -731,8 +732,7 @@ class InterfaceStateMachine(Thread):
         logging.info("ADP:", adpdu_str(adpdu))
         
         if adpdu.header.message_type == avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER:
-            self.rcvdDiscover = True
-            self.entityID = adpdu.header.entity_id
+            self.rcvdDiscover = adpdu.header.entity_id
         
     def run(self):
         logging.debug("InterfaceStateMachine: Starting thread")
@@ -750,13 +750,13 @@ class InterfaceStateMachine(Thread):
                 self.doAdvertise = False
                 
             # DiscoveryInterfaceStateMachine
-            if self.rcvdDiscover:
+            if self.rcvdDiscover is not None:
                 # RECEIVED DISCOVER
-                self.rcvdDiscover = False
-                
-                if entity_id == 0 or entity_id == entityInfo.entity_id:
+                if self.rcvdDiscover == 0 or self.rcvdDiscover == self.entityInfo.entity_id:
                     # DISCOVER
                     self.performAdvertise()
+                    
+                self.rcvdDiscover = None
             
             if self.currentGrandmasterID != self.advertisedGrandmasterID:
                 # UPDATE GM
