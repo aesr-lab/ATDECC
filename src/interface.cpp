@@ -105,8 +105,8 @@ static int _aecp_aem_check(
     if(frame->payload[0] == JDKSAVDECC_1722A_SUBTYPE_AECP) {
         bzero( aem, sizeof( *aem ) );
         ssize_t pos = jdksavdecc_aecpdu_aem_read( aem, frame->payload, 0, frame->length );
-        if ( pos > 0 )
-        {
+        if ( pos > 0 ) {
+#if 0
           struct jdksavdecc_aecpdu_common_control_header *h = &aem->aecpdu_header.header;
           if ( h->version == 0 && h->subtype == JDKSAVDECC_SUBTYPE_AECP && h->cd == 1 )
           {
@@ -130,6 +130,9 @@ static int _aecp_aem_check(
                   }
               }
           }
+#else
+          r = 0;
+#endif
         }
     }
     return r;
