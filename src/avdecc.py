@@ -789,7 +789,10 @@ class InterfaceStateMachine(Thread):
         logging.debug("InterfaceStateMachine: Ending thread")
 
 
-class ACMPListenerStateMachine(Thread):
+class ACMPListenerStateMachine(
+    GlobalStateMachine, 
+    Thread
+    ):
     """
     IEEE 1722.1-2021, section 8.2.4
     """
@@ -988,8 +991,8 @@ class ACMPListenerStateMachine(Thread):
             # check timeouts
             ct = self.currentTime
             retried = []
-            while ct >= self.inflights[0].timeout:
-                infl = self.inflights.pop(0)
+            while len(self.inflight) and ct >= self.inflight[0].timeout:
+                infl = self.inflight.pop(0)
                 if infl.command.message_type == avdecc_api.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND:
                     # CONNECT TX TIMEOUT
                     if infl.retried:
@@ -1017,7 +1020,7 @@ class ACMPListenerStateMachine(Thread):
                         
             # reinsert retries into inflights
             for infl in retried[::-1]:
-                self.inflights.insert(0, infl)
+                self.inflight.insert(0, infl)
             
             if self.rcvdConnectRXCmd:
                 # CONNECT RX COMMAND
@@ -1207,7 +1210,6 @@ class EntityModelEntityStateMachine(Thread):
 class AVDECC:
 
     def __init__(self, intf, valid_time=62, discover=False):
-
         self.intf = Interface(intf)
         
         # generate entity_id from MAC
@@ -1216,26 +1218,37 @@ class AVDECC:
         # create EntityInfo
         self.entity_info = EntityInfo(entity_id=entity_id, valid_time=valid_time)
 
+        self.state_machines = []
+
         # create AdvertisingInterfaceStateMachine
-        self.adv_intf_sm = InterfaceStateMachine(
+        adv_intf_sm = InterfaceStateMachine(
                              entity_info=self.entity_info,
                              interfaces=(self.intf,),
                              )
+        self.state_machines.append(adv_intf_sm)
         
         # create AdvertisingEntityStateMachine
-        self.adv_sm = AdvertisingEntityStateMachine(
+        adv_sm = AdvertisingEntityStateMachine(
                         entity_info=self.entity_info,
-                        interface_state_machines=(self.adv_intf_sm,),
+                        interface_state_machines=(adv_intf_sm,),
                         )
-                        
+        self.state_machines.append(adv_sm)
+
+        # create ACMPListenerStateMachine
+        acmp_sm = ACMPListenerStateMachine(
+                        entity_info=self.entity_info,
+                        interfaces=(self.intf,),
+                        )
+        self.state_machines.append(acmp_sm)
+
         # create EntityModelEntityStateMachine
-        self.aem_sm = EntityModelEntityStateMachine(entity_info=self.entity_info, interfaces=(self.intf,))
+        aem_sm = EntityModelEntityStateMachine(entity_info=self.entity_info, interfaces=(self.intf,))
+        self.state_machines.append(aem_sm)
 
     def __enter__(self):
         logging.debug("Starting threads")
-        self.adv_intf_sm.start()
-        self.adv_sm.start()
-        self.aem_sm.start()
+        for sm in self.state_machines:
+            sm.start()
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
@@ -1243,18 +1256,13 @@ class AVDECC:
             print("Exception:", exception_value)
 
         logging.debug("Trying to join threads")
-        self.adv_sm.performTerminate()
-        self.adv_intf_sm.performTerminate()
-        self.aem_sm.performTerminate()
-        while self.adv_intf_sm.is_alive() or self.adv_sm.is_alive() or self.aem_sm.is_alive():
-            self.adv_intf_sm.join(0.001)
-            self.adv_sm.join(0.001)
-            self.aem_sm.join(0.001)
+        for sm in self.state_machines:
+            sm.performTerminate()
+        # wait for termination
+        while sum(sm.is_alive() for sm in self.state_machines):
+            time.sleep(0.001)
 
         logging.debug("Successfully joined threads")
-
-        # we need a bit of time so that the departing message can get through
-#        time.sleep(0.5)
 
 
 class xxAVDECC:
