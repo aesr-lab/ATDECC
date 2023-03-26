@@ -295,6 +295,10 @@ class jdksInterface:
     
     def __init__(self, ifname):
         self.ifname = ifname
+        
+        self.adp_cbs = []
+        self.acmp_cbs = []
+        self.aecp_aem_cbs = []
 
         self.handle = ctypes.c_void_p()
         intf = ctypes.c_char_p(self.ifname.encode())
@@ -323,26 +327,53 @@ class jdksInterface:
         assert res == 0
         logging.debug(f"AVDECC_send_adp {msg} done")
 
-    def recv_adp(self, adpdu):
-        logging.info("ADP: %s", adpdu_str(adpdu))
+    def register_adp_cb(self, cb):
+        self.adp_cbs.append(cb)
 
-    def recv_acmp(self, acmpdu):
-        logging.info("ACMP: %s", acmpdu_str(acmpdu))
+    def unregister_adp_cb(self, cb):
+        self.adp_cbs.remove(cb)
 
-    def recv_aecp_aem(self, aecpdu_aem):
-        logging.info("AECP_AEM: %s", aecpdu_aem_str(aecpdu_aem))
+    def register_acmp_cb(self, cb):
+        self.acmp_cbs.append(cb)
+
+    def unregister_acmp_cb(self, cb):
+        self.acmp_cbs.remove(cb)
+
+    def register_aecp_aem_cb(self, cb):
+        self.aecp_aem.append(cb)
+
+    def unregister_aecp_aem_cb(self, cb):
+        self.aecp_aem.remove(cb)
+
+#    def recv_adp(self, adpdu):
+#        logging.info("ADP:", adpdu_str(adpdu))
+
+#    def recv_acmp(self, acmpdu):
+#        logging.info("ACMP:", acmpdu)
+
+#    def recv_aecp_aem(self, aecpdu_aem):
+#        logging.info("AECP_AEM:", aecpdu_aem_str(aecpdu_aem))
 
     @avdecc_api.AVDECC_ADP_CALLBACK
     def _adp_cb(handle, frame_ptr, adpdu_ptr):
-        jdksInterface.handles[handle].recv_adp(adpdu_ptr.contents)
+        this = jdksInterface.handles[handle]
+        du = adpdu_ptr.contents
+        for cb in this.adp_cbs:
+            cb(du)
 
     @avdecc_api.AVDECC_ACMP_CALLBACK
     def _acmp_cb(handle, frame_ptr, acmpdu_ptr):
-        jdksInterface.handles[handle].recv_acmp(acmpdu_ptr.contents)
+        this = jdksInterface.handles[handle]
+        du = acmpdu_ptr.contents
+        for cb in this.acmp_cbs:
+            cb(du)
 
     @avdecc_api.AVDECC_AECP_AEM_CALLBACK
     def _aecp_aem_cb(handle, frame_ptr, aecpdu_aem_ptr):
-        jdksInterface.handles[handle].recv_aecp_aem(aecpdu_aem_ptr.contents)
+        this = jdksInterface.handles[handle]
+        du = aecpdu_aem_ptr.contents
+        for cb in this.aecp_aem_cbs:
+            cb(du)
 
 
 class Interface(jdksInterface):
@@ -586,6 +617,7 @@ class DiscoveryInterfaceStateMachine(
     """
 
     def __init__(self):
+        self.doTerminate = False
         self.currentGrandmasterID = None
         self.advertisedGrandmasterID = None
         self.rcvdDiscover = None
@@ -596,12 +628,22 @@ class DiscoveryInterfaceStateMachine(
         self.advertisedConfigurationIndex = None
         self.event = Event()
         
+    def performTerminate(self):
+        self.doTerminate = True
+        self.event.set()
+        
+    def adp_cb(self, adpdu):
+        logging.info("ADP:", adpdu_str(adpdu))
+        
     def run(self):
         self.lastLinkIsUp = False
         self.advertisedGrandmasterID = self.currentGrandmasterID
         
         while True:
             self.event.wait()
+            if self.doTerminate:
+                break
+
             self.event.clear()
             
             if self.rcvdDiscover:
@@ -627,6 +669,115 @@ class DiscoveryInterfaceStateMachine(
                 # UPDATE CONFIGURATION
                 self.advertisedConfigurationIndex = self.currentConfigurationIndex 
                 self.needsAdvertise = True
+
+
+# combined:
+# AdvertisingInterfaceStateMachine
+# DiscoveryInterfaceStateMachine
+class InterfaceStateMachine(Thread):
+    """
+    IEEE 1722.1-2021, section 6.2.5
+    for each AVB interface of the ATDECC Entity being published in the End Station
+
+    IEEE 1722.1-2021, section 6.2.7    
+    """
+    
+    def __init__(self, entity_info, interfaces):
+        super(InterfaceStateMachine, self).__init__()
+        
+        self.event = Event()
+        self.doTerminate = False
+
+        # AdvertisingInterfaceStateMachine
+        self.doAdvertise = False
+        self.interfaces = interfaces
+        self.entity_info = entity_info
+        
+        # DiscoveryInterfaceStateMachine
+        self.rcvdDiscover = None
+        self.entityID = None
+        self.currentGrandmasterID = None
+        self.advertisedGrandmasterID = None
+        self.linkIsUp = False
+        self.lastLinkIsUp = False
+        self.currentConfigurationIndex = None
+        self.advertisedConfigurationIndex = None
+        
+        
+    def performTerminate(self):
+        self.doTerminate = True
+        logging.debug("doTerminate")
+        self.event.set()
+        
+    def performAdvertise(self):
+        self.doAdvertise = True
+        self.event.set()
+        
+    def txEntityAvailable(self):
+        """
+        The txEntityAvailable function transmits an ENTITY_AVAILABLE message
+        """
+        for intf in self.interfaces:
+            intf.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity_info)
+
+    def txEntityDeparting(self):
+        """
+        The txEntityAvailable function transmits an ENTITY_DEPARTING message
+        """
+        for intf in self.interfaces:
+            intf.send_adp(avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity_info)
+
+    def adp_cb(self, adpdu):
+        logging.info("ADP:", adpdu_str(adpdu))
+        
+        if adpdu.header.message_type == avdecc_api.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER:
+            self.rcvdDiscover = True
+            self.entityID = adpdu.header.entity_id
+        
+    def run(self):
+        logging.debug("InterfaceStateMachine: Starting thread")
+
+        while True:
+            self.event.wait(1)
+            # signalled
+            if self.doTerminate:
+                break
+            self.event.clear()
+            
+            # AdvertisingInterfaceStateMachine
+            if self.doAdvertise:
+                self.txEntityAvailable()
+                self.doAdvertise = False
+                
+            # DiscoveryInterfaceStateMachine
+            if self.rcvdDiscover:
+                # RECEIVED DISCOVER
+                self.rcvdDiscover = False
+                
+                if entity_id == 0 or entity_id == entityInfo.entity_id:
+                    # DISCOVER
+                    self.performAdvertise()
+            
+            if self.currentGrandmasterID != self.advertisedGrandmasterID:
+                # UPDATE GM
+                self.advertisedGrandmasterID = self.currentGrandmasterID
+                self.performAdvertise()
+                
+            if self.lastLinkIsUp != self.linkIsUp:
+                # LINK STATE CHANGE
+                self.lastLinkIsUp = self.linkIsUp 
+                if self.linkIsUp:
+                    self.performAdvertise()
+                    
+            if self.currentConfigurationIndex != self.advertisedConfigurationIndex:
+                # UPDATE CONFIGURATION
+                self.advertisedConfigurationIndex = self.currentConfigurationIndex 
+                self.performAdvertise()
+
+        # thread ending
+        self.txEntityDeparting()
+
+        logging.debug("InterfaceStateMachine: Ending thread")
 
 
 class AVDECC:
