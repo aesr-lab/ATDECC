@@ -6,6 +6,7 @@ APIMOD=$(LIBNAME).py
 SYS := $(shell gcc -dumpmachine)
 DEBUG ?= 0
 
+C_HDRS=$(wildcard ../jdksavdecc-c/include/*.h) 
 CPP_SRCS=$(wildcard *.cpp) 
 C_SRCS=$(wildcard ../jdksavdecc-c/src/*.c) $(wildcard ../avdecc-cmd/src/*.c)
 OBJS=$(patsubst %.c,%.o,$(C_SRCS)) $(patsubst %.cpp,%.opp,$(CPP_SRCS))
@@ -51,8 +52,10 @@ interface.opp: interface.cpp interface.h Makefile
 $(DYLIB): $(OBJS)
 	$(CXX) $^ $(LD_FLAGS) -o $@
 
-$(APIMOD): interface.h $(DYLIB) Makefile ./patch_api.sh
-	clang2py -l$(DYLIB) -i --clang-args="$(CLANG_FLAGS)" $< -o $@
+$(APIMOD): interface.h $(DYLIB) Makefile ./patch_api.sh $(C_HDRS)
+	-mkdir ./include
+	for f in $(C_HDRS); do ./cvt_header.py "$$f" "./include/$${f##*/}"; done
+	clang2py -l$(DYLIB) -i --clang-args="-I./include $(CLANG_FLAGS)" $< -o $@
 	test -s $@
 	./patch_api.sh "$@"
 
