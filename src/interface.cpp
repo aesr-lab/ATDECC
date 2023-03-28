@@ -235,6 +235,18 @@ public:
 
   int send(struct raw_context *net, struct jdksavdecc_frame *frame, jdksavdecc_aecpdu_aem &aecpdu) const
   {
+    /*
+    if ( aecp_aem_form_msg( frame,
+                            &aemdu,
+                            message_type,
+                            command_code,
+                            sequence_id,
+                            destination_mac,
+                            target_entity_id,
+                            command_payload,
+                            command_payload_len ) == 0 ) {
+    }
+    */
     return -1;
   }
 };

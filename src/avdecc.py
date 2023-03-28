@@ -215,8 +215,26 @@ def intf_to_ip(intf):
     """
     addrs = netifaces.ifaddresses(intf)
     return addrs[netifaces.AF_INET][0]['addr']
-    
-    
+
+
+def adp_form_msg( frame: avdecc_api.struct_jdksavdecc_frame,
+                  adpdu: avdecc_api.struct_jdksavdecc_adpdu,
+                  message_type: avdecc_api.uint16_t,
+                  target_entity: avdecc_api.struct_jdksavdecc_eui64  ) -> int:
+    r = -1
+    adpdu.header.cd = 1
+    adpdu.header.subtype = avdecc_api.JDKSAVDECC_SUBTYPE_ADP
+    adpdu.header.version = 0
+    adpdu.header.sv = 0
+    adpdu.header.control_data_length = avdecc_api.JDKSAVDECC_ADPDU_LEN - avdecc_api.JDKSAVDECC_COMMON_CONTROL_HEADER_LEN
+    adpdu.header.message_type = message_type
+    adpdu.header.entity_id = target_entity
+    frame.length = avdecc_api.jdksavdecc_adpdu_write( adpdu, frame.payload, 0, sizeof( frame->payload ) )
+    frame.dest_address = avdecc_api.jdksavdecc_multicast_adp_acmp
+    frame.ethertype = avdecc_api.JDKSAVDECC_AVTP_ETHERTYPE
+    r = 0
+    return r
+
 
 class EntityInfo:
     """
@@ -322,6 +340,13 @@ class jdksInterface:
     def send_adp(self, msg, entity):
         pdu = entity.get_adpdu()
         res = AVDECC_set_adpdu(self.handle, pdu)
+        assert res == 0
+        res = AVDECC_send_adp(self.handle, msg, avdecc_api.uint64_t(entity.entity_id))
+        assert res == 0
+        logging.debug(f"AVDECC_send_adp {msg} done")
+
+    def send_aecp_aem(self, pdu, entity):
+        res = AVDECC_set_aecpdu_aem(self.handle, pdu)
         assert res == 0
         res = AVDECC_send_adp(self.handle, msg, avdecc_api.uint64_t(entity.entity_id))
         assert res == 0
@@ -1145,23 +1170,61 @@ class EntityModelEntityStateMachine(Thread):
 
             if aecp_aemdu.aecpdu_header.header.message_type == avdecc_api.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_COMMAND:
                 self.rcvdCommand = aecp_aemdu
+                self.event.set()
 
     def acquireEntity(self, command):
-        # handle AEM Command ACQUIRE_ENTITY 
-        raise NotImplementedError()
+        """
+        The acquireEntity function is used to handle the receipt, processing and respond to an ACQUIRE_ENTITY AEM Command (7.4.1).
+        
+        The acquireEntity function handles checking the current status of the acquisition, issuing any required 
+        CONTROLLER_AVAILABLE AEM Command (7.4.4) and dealing with the response and sending any required IN_PROGRESS responses 
+        for the passed in command.
+        acquireEntity returns a AEMCommandResponse structure filled in with the appropriate details from the command, 
+        an appropriate status code and the Acquired Controller’s Entity ID.
+        """
+        # handle AEM Command ACQUIRE_ENTITY
+        
+        response = struct_jdksavdecc_aem_command_acquire_entity_response(
+            aem_header=struct_jdksavdecc_aecpdu_aem(
+                
+            ),
+            aem_acquire_flags=0,
+            owner_entity_id=self.myEntityID,
+            descriptor_type=,
+            descriptor_index=,
+        )
+        return response
         
     def lockEntity(self, command):
+        """
+        The lockEntity is used to handle the receipt, processing and respond to an LOCK_ENTITY AEM Command (7.4.2).
+        The lockEntity function returns a AEMCommandResponse structure filled in with the appropriate details from the command, 
+        an appropriate status code and the Acquired Controller’s Entity ID.
+        """
         # handle AEM Command LOCK_ENTITY 
         raise NotImplementedError()
         
     def processCommand(self, command):
+        """
+        The processCommand is used to handle the receipt, processing and respond to an AEM Command other than 
+        ACQUIRE_ENTITY and LOCK_ENTITY.
+        The processCommand function returns a AEMCommandResponse structure filled in with the appropriate details 
+        from the command and an appropriate status code. Any command that is received and not implemented shall be 
+        responded to with a correctly sized response and a status of NOT_IMPLEMENTED.
+        """
         # handle AEM Command other than ACQUIRE_ENTITY and LOCK_ENTITY
         raise NotImplementedError()
         
     def txResponse(self, response):
+        """
+        The txResponse function transmits an AEM response. 
+        It sets the AEM AECPDU fields to the values from the response AEMCommandResponse parameter.
+        """
         # transmits an AEM response. It sets the AEM AECPDU fields to the values from the response AEMCommandResponse parameter.
-        raise NotImplementedError()
-        
+        for intf in self.interfaces:
+            intf.send_aecp_aem(response, self.entity_info)
+
+
     def run(self):
         logging.debug("EntityModelEntityStateMachine: Starting thread")
         
