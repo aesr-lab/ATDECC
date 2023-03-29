@@ -144,6 +144,7 @@ enum avdecc_msg_e
   AVDECC_ADP_MSG,
   AVDECC_ACMP_MSG,
   AVDECC_AECP_MSG,
+  AVDECC_FRAME,
   AVDECC_THREAD_JOIN,
 };
 
@@ -153,6 +154,7 @@ union jdksavdecc_du
   struct jdksavdecc_adpdu adpdu;
   struct jdksavdecc_acmpdu acmpdu;
   struct jdksavdecc_aecpdu_aem aecpdu_aem;
+  struct jdksavdecc_frame frame;
 };
 
 
@@ -249,6 +251,28 @@ public:
     */
     return -1;
   }
+};
+
+class avdecc_frame_t:
+  public avdecc_msg_t
+{
+public:
+  avdecc_frame_t(const jdksavdecc_frame *f):
+    avdecc_msg_t(AVDECC_FRAME)
+  {
+    memcpy(&frame, f, sizeof(frame));
+  }
+
+  int send(struct raw_context *net, struct jdksavdecc_frame *)
+  {
+    memcpy( frame.src_address.value, net->m_my_mac, 6 );
+    if ( raw_send( net, frame.dest_address.value, frame.payload, frame.length ) > 0 )
+      return 0;
+    else
+      return -1;
+  }
+  
+  jdksavdecc_frame frame;
 };
 
 
@@ -360,6 +384,9 @@ protected:
     else if(msg.tp == AVDECC_AECP_MSG) {
       r = static_cast<const avdecc_aecp_msg_t &>(msg).send(net, frame, aecpdu_aem);
     }
+    else if(msg.tp == AVDECC_FRAME) {
+      r = ((avdecc_frame_t *)(&msg))->send(net, frame);
+    }
     
     return r;
   }
@@ -412,52 +439,60 @@ public:
 
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_create(AVDECC_HANDLE *handle, const_string_t intf, AVDECC_ADP_CALLBACK adp_cb, AVDECC_ACMP_CALLBACK acmp_cb, AVDECC_AECP_AEM_CALLBACK aecp_aem_cb)
 {
-  avdecc_t *avdecc = new avdecc_t(intf, adp_cb, acmp_cb, aecp_aem_cb);
+  auto avdecc = new avdecc_t(intf, adp_cb, acmp_cb, aecp_aem_cb);
   *handle = static_cast<void *>(avdecc); 
   return 0;
 }
 
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_destroy(AVDECC_HANDLE handle)
 {
-  avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
+  auto avdecc = static_cast<avdecc_t *>(handle);
   delete avdecc;
   return 0;
 }
 
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_frame(AVDECC_HANDLE handle, const struct jdksavdecc_frame *frame)
+{
+  auto avdecc = static_cast<avdecc_t *>(handle);
+  auto m = new avdecc_frame_t(frame);
+  avdecc->send.push(m);
+  return 0;  
+}
+
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_adp(AVDECC_HANDLE handle, uint16_t msg, uint64_t entity)
 {
-  avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
-  avdecc_adp_msg_t *m = new avdecc_adp_msg_t(msg, entity);
+  auto avdecc = static_cast<avdecc_t *>(handle);
+  auto m = new avdecc_adp_msg_t(msg, entity);
   avdecc->send.push(m);
   return 0;
 }
 
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_get_adpdu(AVDECC_HANDLE handle, struct jdksavdecc_adpdu *adpdu)
 {
-  avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
+  auto avdecc = static_cast<avdecc_t *>(handle);
   *adpdu = avdecc->adpdu;
   return 0;
 }
 
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_set_adpdu(AVDECC_HANDLE handle, const struct jdksavdecc_adpdu *adpdu)
 {
-  avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
+  auto avdecc = static_cast<avdecc_t *>(handle);
   avdecc->adpdu = *adpdu;
   return 0;
 }
 
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_acmp(AVDECC_HANDLE handle, uint16_t msg, int argc, char **argv)
 {
-  avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
-  avdecc_acmp_msg_t *m = new avdecc_acmp_msg_t(msg, argc, const_cast<const char **>(argv));
+  auto avdecc = static_cast<avdecc_t *>(handle);
+  auto m = new avdecc_acmp_msg_t(msg, argc, const_cast<const char **>(argv));
   avdecc->send.push(m);
   return 0;
 }
 
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_aecp(AVDECC_HANDLE handle, uint16_t msg, int argc, char **argv)
 {
-  avdecc_t *avdecc = static_cast<avdecc_t *>(handle);
-  avdecc_aecp_msg_t *m = new avdecc_aecp_msg_t(msg, argc, const_cast<const char **>(argv));
+  auto avdecc = static_cast<avdecc_t *>(handle);
+  auto m = new avdecc_aecp_msg_t(msg, argc, const_cast<const char **>(argv));
   avdecc->send.push(m);
   return 0;
 }
