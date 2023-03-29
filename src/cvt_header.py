@@ -6,7 +6,7 @@ import pdb
 src = sys.argv[1]
 dst = sys.argv[2]
 
-lncomment = re.compile(r"^(.*)//.*$")
+lncomment = re.compile(r"^(.*)//(.*)$")
 lnprolong = re.compile(r"^(.*)\\\s*$")
 jdksdef = re.compile(r"^\s*#define\s+(JDKSAVDECC_[A-Z_0-9]+)\s+(\(.+\)).*$")
 
@@ -17,7 +17,13 @@ with open(src, 'r') as fsrc:
             ln = ln.strip()
             m = lncomment.match(ln)
             if m is not None:
-                ln = m.group(1).strip()
+                if "NO CONVERSION" in m.group(2):
+                    fln += ln
+                    fdst.write(fln+'\n')
+                    fln = ''
+                    continue
+                else:
+                    ln = m.group(1).strip()
                 
             m = lnprolong.match(ln)
             if m is not None:
