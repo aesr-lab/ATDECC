@@ -40,7 +40,7 @@ DYLIB=$(LIBNAME)_mod.$(SHLIB_EXT)
 
 all: $(APIMOD)
 
-%.o: %.c
+%.o: %.c $(C_HDRS)
 	$(CC) -c $< $(C_FLAGS) -o $@
 
 interface.opp: interface.cpp interface.h Makefile

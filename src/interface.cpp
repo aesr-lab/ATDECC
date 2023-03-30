@@ -1,5 +1,6 @@
 #include <thread>
 #include <string>
+#include <iostream>
 
 #include <raw.h>
 #include <adp.h>
