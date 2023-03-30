@@ -7,6 +7,8 @@ from avdecc_api import AVDECC_create, AVDECC_destroy, AVDECC_send_frame, AVDECC_
 import time
 import logging
 from threading import Thread, Event
+from queue import Queue, Empty
+import copy
 import random
 import netifaces
 import pdb
@@ -808,7 +810,7 @@ class InterfaceStateMachine(Thread):
         self.entity_info = entity_info
         
         # DiscoveryInterfaceStateMachine
-        self.rcvdDiscover = None
+        self.rcvdDiscover = Queue()
         self.currentGrandmasterID = None
         self.advertisedGrandmasterID = None
         self.linkIsUp = True
@@ -842,10 +844,10 @@ class InterfaceStateMachine(Thread):
 
     def adp_cb(self, adpdu):
 #        logging.info("ADP: %s", adpdu_str(adpdu))
-        
+
         if adpdu.header.message_type == av.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER:
-            self.rcvdDiscover = adpdu.header.entity_id
-        
+            self.rcvdDiscover.put(copy.deepcopy(adpdu.header.entity_id))
+
     def run(self):
         logging.debug("InterfaceStateMachine: Starting thread")
         
@@ -853,11 +855,13 @@ class InterfaceStateMachine(Thread):
             intf.register_adp_cb(self.adp_cb)
 
         while True:
-            self.event.wait(1)
-            # signalled
+            if self.rcvdDiscover.empty():
+                self.event.wait(1)
+                # signalled
+                self.event.clear()
+                
             if self.doTerminate:
                 break
-            self.event.clear()
             
             # AdvertisingInterfaceStateMachine
             if self.doAdvertise:
@@ -865,14 +869,17 @@ class InterfaceStateMachine(Thread):
                 self.doAdvertise = False
                 
             # DiscoveryInterfaceStateMachine
-            if self.rcvdDiscover is not None:
+            try:
+                disc = self.rcvdDiscover.get_nowait()
+            except Empty:
+                disc = None
+                
+            if disc is not None:
                 # RECEIVED DISCOVER
-                if self.rcvdDiscover == 0 or self.rcvdDiscover == self.entityInfo.entity_id:
+                if disc == 0 or disc == self.entity_info.entity_id:
                     # DISCOVER
                     logging.debug("Respond to Discover")
                     self.performAdvertise()
-                    
-                self.rcvdDiscover = None
             
             if self.currentGrandmasterID != self.advertisedGrandmasterID:
                 # UPDATE GM
@@ -913,6 +920,7 @@ class ACMPListenerStateMachine(
     def __init__(self, entity_info, interfaces):
         super(ACMPListenerStateMachine, self).__init__()
         self.event = Event()
+        self.queue = Queue()
         self.doTerminate = False
         self.interfaces = interfaces
         
@@ -930,9 +938,11 @@ class ACMPListenerStateMachine(
         logging.debug("doTerminate")
         self.event.set()
 
-    def acmp_cb(self, acmpdu):
+    def acmp_cb(self, acmpdu: av.struct_jdksavdecc_acmpdu):
         if eui64_to_uint64(acmpdu.listener_entity_id) == self.my_id:
             logging.info("ACMP: %s", acmpdu_str(acmpdu))
+            self.queue.put(copy.deepcopy(acmpdu)) # copy structure (will probably be overwritten)
+            self.event.set()
 
     def validListenerUnique(self, ListenerUniqueId):
         """
@@ -1095,11 +1105,19 @@ class ACMPListenerStateMachine(
             self.rcvdDisconnectTXResp = False
             self.rcvdGetRXState = False
             
-            self.event.wait(1)
-            # signalled
+            if self.queue.empty():
+                self.event.wait(1)
+                # signalled
+                self.event.clear()
+                
             if self.doTerminate:
                 break
-            self.event.clear()
+                
+            try:
+                cmd = self.queue.get_nowait()
+                self.inflight.append(cmd)
+            except Empty:
+                pass
             
             try:
                 # check timeouts
@@ -1224,9 +1242,8 @@ class ACMPListenerStateMachine(
                         self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, status)
 
                     self.rcvdDisconnectTXResp = False
-            except:
-                logging.warning("Exception")
-                pass
+            except Exception as e:
+                logging.error("Exception: %s", e)
 
         for intf in self.interfaces:
             intf.unregister_acmp_cb(self.acmp_cb)
@@ -1245,25 +1262,26 @@ class EntityModelEntityStateMachine(Thread):
         self.doTerminate = False
         self.interfaces = interfaces
         
-        self.rcvdCommand = None
-        self.myEntityID = entity_info.entity_id
+        self.rcvdCommand = Queue()
+        self.entity_info = entity_info
         self.unsolicited = None
         self.unsolicitedSequenceID = 0
+        self.unsolicited_list = set()
         
     def performTerminate(self):
         self.doTerminate = True
         logging.debug("doTerminate")
         self.event.set()
         
-    def aecp_aem_cb(self, aecp_aemdu):
-        if eui64_to_uint64(aecp_aemdu.aecpdu_header.header.target_entity_id) == self.myEntityID:
+    def aecp_aem_cb(self, aecp_aemdu: av.struct_jdksavdecc_aecpdu_common):
+        if eui64_to_uint64(aecp_aemdu.aecpdu_header.header.target_entity_id) == self.entity_info.entity_id:
             logging.info("AECP AEM: %s", aecpdu_aem_str(aecp_aemdu))
 
             if aecp_aemdu.aecpdu_header.header.message_type == av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_COMMAND:
-                self.rcvdCommand = aecp_aemdu
+                self.rcvdCommand.put(copy.deepcopy(aecp_aemdu)) # copy structure, will probably be overwritten
                 self.event.set()
 
-    def acquireEntity(self, command):
+    def acquireEntity(self, command: av.struct_jdksavdecc_aecpdu_aem):
         """
         The acquireEntity function is used to handle the receipt, processing and respond to an ACQUIRE_ENTITY AEM Command (7.4.1).
         
@@ -1282,13 +1300,13 @@ class EntityModelEntityStateMachine(Thread):
                 command_type=av.JDKSAVDECC_AEM_COMMAND_ACQUIRE_ENTITY
             ),
             aem_acquire_flags=0,
-            owner_entity_id=self.myEntityID,
+            owner_entity_id=self.entity_info.entity_id,
             descriptor_type=0,
             descriptor_index=0,
         )
         return response
         
-    def lockEntity(self, command):
+    def lockEntity(self, command: av.struct_jdksavdecc_aecpdu_aem):
         """
         The lockEntity is used to handle the receipt, processing and respond to an LOCK_ENTITY AEM Command (7.4.2).
         The lockEntity function returns a AEMCommandResponse structure filled in with the appropriate details from the command, 
@@ -1297,7 +1315,7 @@ class EntityModelEntityStateMachine(Thread):
         # handle AEM Command LOCK_ENTITY 
         raise NotImplementedError()
         
-    def processCommand(self, command):
+    def processCommand(self, command: av.struct_jdksavdecc_aecpdu_aem):
         """
         The processCommand is used to handle the receipt, processing and respond to an AEM Command other than 
         ACQUIRE_ENTITY and LOCK_ENTITY.
@@ -1306,7 +1324,20 @@ class EntityModelEntityStateMachine(Thread):
         responded to with a correctly sized response and a status of NOT_IMPLEMENTED.
         """
         # handle AEM Command other than ACQUIRE_ENTITY and LOCK_ENTITY
-        raise NotImplementedError()
+        
+        if command.command_type == av.JDKSAVDECC_AEM_COMMAND_REGISTER_UNSOLICITED_NOTIFICATION:
+            eid = eui64_to_uint64(command.aecpdu_header.controller_entity_id)
+            self.unsolicited_list.add(eid)
+            logging.debug(f"Added eid={eid} to unsolicited_list")
+        elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_DEREGISTER_UNSOLICITED_NOTIFICATION:
+            eid = eui64_to_uint64(command.aecpdu_header.controller_entity_id)
+            try:
+                self.unsolicited_list.remove(eid)
+                logging.debug(f"Removed eid={eid} from unsolicited_list")
+            except KeyError:
+                pass
+        else:
+            raise NotImplementedError(f"AEM command {command.command_type} not implemented")
         
     def txResponse(self, response):
         """
@@ -1325,15 +1356,20 @@ class EntityModelEntityStateMachine(Thread):
             intf.register_aecp_aem_cb(self.aecp_aem_cb)
 
         while True:
-            self.rcvdCommand = None
-            self.rcvdId = 0
             self.unsolicited = None
             
-            self.event.wait(1)
-            # signalled
+            if self.rcvdCommand.empty():
+                self.event.wait(1)
+                # signalled
+                self.event.clear()
+                
             if self.doTerminate:
                 break
-            self.event.clear()
+            
+            try:
+                cmd = self.rcvdCommand.get_nowait()
+            except Empty:
+                cmd = None
             
             try:
                 if self.unsolicited is not None:
@@ -1344,22 +1380,21 @@ class EntityModelEntityStateMachine(Thread):
                     self.unsolicitedSequenceID += 1
                     self.unsolicited = None
                 
-                if self.rcvdCommand is not None:
+                if cmd is not None:
                     # RECEIVED COMMAND
-                    logging.debug("Received command")
-                    if self.rcvdCommand.command_type == av.JDKSAVDECC_AEM_COMMAND_ACQUIRE_ENTITY:
-                        response = self.acquireEntity(self.rcvdCommand)
-                    elif self.rcvdCommand.command_type == av.JDKSAVDECC_AEM_COMMAND_LOCK_ENTITY:
-                        response = self.lockEntity(self.rcvdCommand)
-                    elif self.rcvdCommand.command_type == av.JDKSAVDECC_AEM_COMMAND_ENTITY_AVAILABLE:
-                        response = self.rcvdCommand
+                    if cmd.command_type == av.JDKSAVDECC_AEM_COMMAND_ACQUIRE_ENTITY:
+                        response = self.acquireEntity(cmd)
+                    elif cmd.command_type == av.JDKSAVDECC_AEM_COMMAND_LOCK_ENTITY:
+                        response = self.lockEntity(cmd)
+                    elif cmd.command_type == av.JDKSAVDECC_AEM_COMMAND_ENTITY_AVAILABLE:
+                        response = cmd
                     else:
-                        response = self.processCommand(self.rcvdCommand)
+                        response = self.processCommand(cmd)
                     self.txResponse(response)
                     self.rcvdCommand = None
-            except:
-                logging.warning("Exception")
-                pass
+                    
+            except Exception as e:
+                logging.error("Exception: %s", e)
 
         for intf in self.interfaces:
             intf.unregister_aecp_aem_cb(self.aecp_aem_cb)
@@ -1369,14 +1404,15 @@ class EntityModelEntityStateMachine(Thread):
 
 class AVDECC:
 
-    def __init__(self, intf, valid_time=62, discover=False):
+    def __init__(self, intf, entity_info, discover=False):
         self.intf = Interface(intf)
         
         # generate entity_id from MAC
         entity_id = mac_to_uint64(self.intf.mac)
         
         # create EntityInfo
-        self.entity_info = EntityInfo(entity_id=entity_id, valid_time=valid_time)
+        self.entity_info = entity_info
+        self.entity_info.entity_id = entity_id
 
         self.state_machines = []
 
@@ -1535,8 +1571,19 @@ if __name__ == '__main__':
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
+        
+    entity_info = EntityInfo(
+        valid_time=args.valid,
+        entity_model_id = 1,
+        entity_capabilities=av.JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED +
+                            av.JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED,
+        listener_stream_sinks=16,
+        listener_capabilities=av.JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED +
+                              av.JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK,
+        gptp_grandmaster_id=0,
+    )
 
-    with AVDECC(intf=args.intf, valid_time=args.valid, discover=args.discover) as avdecc:
+    with AVDECC(intf=args.intf, entity_info=entity_info, discover=args.discover) as avdecc:
 
         while(True):
             time.sleep(0.1)
