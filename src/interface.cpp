@@ -1,6 +1,7 @@
 #include <thread>
 #include <string>
 #include <iostream>
+#include <iomanip>
 
 #include <raw.h>
 #include <adp.h>
@@ -266,7 +267,17 @@ public:
 
   int send(struct raw_context *net, struct jdksavdecc_frame *)
   {
-    memcpy( frame.src_address.value, net->m_my_mac, 6 );
+#if 1
+    std::cerr << "Send frame, length=" << std::dec << frame.length << ", bytes=[";
+    std::cerr << std::hex;
+    for(int i = 0; i < frame.length; ) {
+      for(int j = 0; j < 4 && i < frame.length; ++i, ++j) 
+        std::cerr << std::setfill('0') << std::setw(2) << int(frame.payload[i]);
+      std::cerr << ' ';
+    }
+    std::cerr << std::dec << "]" << std::endl;
+#endif
+//    memcpy( frame.src_address.value, net->m_my_mac, 6 );
     if ( raw_send( net, frame.dest_address.value, frame.payload, frame.length ) > 0 )
       return 0;
     else
