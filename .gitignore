@@ -7,4 +7,5 @@
 /venv
 avdecc_api.*
 src/avdecc_mod.*
+__pycache__
 
