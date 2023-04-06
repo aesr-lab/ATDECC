@@ -267,7 +267,7 @@ public:
 
   int send(struct raw_context *net, struct jdksavdecc_frame *)
   {
-#if 1
+#if 0
     std::cerr << "Send frame, length=" << std::dec << frame.length << ", bytes=[";
     std::cerr << std::hex;
     for(int i = 0; i < frame.length; ) {
