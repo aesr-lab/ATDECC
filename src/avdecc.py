@@ -819,32 +819,39 @@ class ACMPListenerStateMachine(
                 # check timeouts
                 ct = self.currentTime
                 retried = []
-                while len(self.inflight) and ct >= self.inflight[0].timeout:
-                    infl = self.inflight.pop(0)
-                    if infl.command.message_type == av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND:
-                        # CONNECT TX TIMEOUT
-                        if infl.retried:
-                            response = infl.command
-                            response.sequence_id = infl.original_sequence_id
-                            listenerInfo = self.listenerStreamInfos[rcvdCmdResp.listener_unique_id]
-                            listenerInfo.pending_connection = False
-                            self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, response, av.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
-                        else:
-                            # Retry
-                            self.txCommand(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, infl.command, True)
-                            infl.retried = True
-                            retried.append(infl)
+
+                # self.inflight: list struct_jdksavdecc_acmpdu
+
+                if len(self.inflight):
+                    import pdb
+                    pdb.set_trace()
+                
+                    while len(self.inflight) and ct >= self.inflight[0].timeout:
+                        infl = self.inflight.pop(0)
+                        if infl.command.message_type == av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND:
+                            # CONNECT TX TIMEOUT
+                            if infl.retried:
+                                response = infl.command
+                                response.sequence_id = infl.original_sequence_id
+                                listenerInfo = self.listenerStreamInfos[rcvdCmdResp.listener_unique_id]
+                                listenerInfo.pending_connection = False
+                                self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, response, av.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
+                            else:
+                                # Retry
+                                self.txCommand(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, infl.command, True)
+                                infl.retried = True
+                                retried.append(infl)
                         
-                    elif infl.command.message_type == av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND:
-                        # DISCONNECT TX TIMEOUT
-                        if infl.retried:
-                            response = infl.command
-                            response.sequence_id = infl.original_sequence_id
-                            self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, av.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
-                        else:
-                            self.txCommand(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, infl.command, True)
-                            infl.retried = True
-                            retried.append(infl)
+                        elif infl.command.message_type == av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND:
+                            # DISCONNECT TX TIMEOUT
+                            if infl.retried:
+                                response = infl.command
+                                response.sequence_id = infl.original_sequence_id
+                                self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, av.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
+                            else:
+                                self.txCommand(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, infl.command, True)
+                                infl.retried = True
+                                retried.append(infl)
                         
                 # reinsert retries into inflights
                 for infl in retried[::-1]:
@@ -1137,7 +1144,7 @@ class EntityModelEntityStateMachine(Thread):
             _, _, descriptor_type, descriptor_index = struct.unpack_from("!4H", payload)
             configuration_index = 0 # need to adjust if more than one configuration
 
-            print("READ_DESCRIPTOR", api_enum('JDKSAVDECC_DESCRIPTOR_', descriptor_type))
+            logging.debug("READ_DESCRIPTOR %s", api_enum('JDKSAVDECC_DESCRIPTOR_', descriptor_type))
 
             if descriptor_type == av.JDKSAVDECC_DESCRIPTOR_ENTITY:
                 configuration_index = 0 # always 0
@@ -1278,7 +1285,7 @@ class EntityModelEntityStateMachine(Thread):
                                     av.JDKSAVDECC_DESCRIPTOR_STREAM_FLAG_CLASS_A +
                                     0x8000,  # SUPPORTS_NO_SRP - new flag 
                     current_format=uint64_to_eui64(0x0205022002006000),
-                    formats_offset=0,
+                    formats_offset=138,
                     number_of_formats=1, # N
                     backup_talker_entity_id_0=uint64_to_eui64(0),
                     backup_talker_unique_id_0=0,
@@ -1312,7 +1319,7 @@ class EntityModelEntityStateMachine(Thread):
 #                        av.JDKSAVDECC_AVB_INTERFACE_FLAG_GPTP_GRANDMASTER_SUPPORTED +
                         av.JDKSAVDECC_AVB_INTERFACE_FLAG_GPTP_SUPPORTED,
 #                       av.JDKSAVDECC_AVB_INTERFACE_FLAG_SRP_SUPPORTED,
-                    clock_identity=uint64_to_eui64(0),
+                    clock_identity=uint64_to_eui64(self.entity_info.entity_id),
                     priority1=0,
                     clock_class=0,
                     offset_scaled_log_variance=0,
@@ -1381,7 +1388,7 @@ class EntityModelEntityStateMachine(Thread):
                     localized_description=0,
                     clock_source_flags=0x0001, # Table 7-16: LOCAL_ID
                     clock_source_type=0x0002, # Table 7-17: INPUT_STREAM
-                    clock_source_identifier=uint64_to_eui64(0),
+                    clock_source_identifier=uint64_to_eui64(0xffffffffffffffff),
                     clock_source_location_type=av.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN,
                     clock_source_location_index=0,
                 )
@@ -1397,28 +1404,10 @@ class EntityModelEntityStateMachine(Thread):
                 prefix = struct.pack("!2H", configuration_index, 0)
                 response_payload = prefix+response_payload
 
-        elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_GET_COUNTERS:
-            descriptor_type, descriptor_index = struct.unpack_from("!2H", payload)
-
-            print("GET_COUNTERS: descriptor_type=%s, descriptor_index=%d"%(
-                    api_enum('JDKSAVDECC_DESCRIPTOR_', descriptor_type),
-                    descriptor_index)
-            )
-
-            response = copy.deepcopy(command)
-            response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
-            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
-
-            response_payload = struct.pack("!2HL",
-                descriptor_type, # descriptor_type
-                descriptor_index, # descriptor_index
-                0, # counters_valid
-            )+bytes(128)
-
         elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_GET_AVB_INFO:
             descriptor_type, descriptor_index = struct.unpack_from("!2H", payload)
 
-            print("GET_AVB_INFO: descriptor_type=%s, descriptor_index=%d"%(
+            logging.debug("GET_AVB_INFO: descriptor_type=%s, descriptor_index=%d"%(
                     api_enum('JDKSAVDECC_DESCRIPTOR_', descriptor_type),
                     descriptor_index)
             )
@@ -1441,21 +1430,22 @@ class EntityModelEntityStateMachine(Thread):
         elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_GET_AS_PATH:
             descriptor_index, _ = struct.unpack_from("!2H", payload)
 
-            print("GET_AS_PATH: descriptor_index=%d"%descriptor_index)
+            logging.debug("GET_AS_PATH: descriptor_index=%d"%descriptor_index)
 
             response = copy.deepcopy(command)
             response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
 #            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
 
-            response_payload = struct.pack("!2H",
+            response_payload = struct.pack("!2HQ",
                 descriptor_index, # descriptor_index
-                0, # count
+                1, # count
+                self.entity_info.entity_id, # Grandmaster ID
             )
 
         elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_GET_AUDIO_MAP:
             descriptor_type, descriptor_index, map_index, _ = struct.unpack_from("!4H", payload)
 
-            print("GET_AUDIO_MAP: descriptor_type=%s, descriptor_index=%d"%(
+            logging.debug("GET_AUDIO_MAP: descriptor_type=%s, descriptor_index=%d"%(
                     api_enum('JDKSAVDECC_DESCRIPTOR_', descriptor_type),
                     descriptor_index)
             )
@@ -1477,6 +1467,42 @@ class EntityModelEntityStateMachine(Thread):
             m = [(descriptor_index, c, 0, c) for c in range(8)]
             mappings = struct.pack("!32H", *flatten_list(m))
             response_payload = pack_struct(descriptor) #+mappings
+
+        elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_GET_COUNTERS:
+            descriptor_type, descriptor_index = struct.unpack_from("!2H", payload)
+
+            logging.debug("GET_COUNTERS: descriptor_type=%s, descriptor_index=%d"%(
+                    api_enum('JDKSAVDECC_DESCRIPTOR_', descriptor_type),
+                    descriptor_index)
+            )
+
+            response = copy.deepcopy(command)
+            response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+#            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+
+            if descriptor_type == av.JDKSAVDECC_DESCRIPTOR_ENTITY:
+                counters_valid = 0
+
+            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE:
+                counters_valid = 0
+
+            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN:
+                counters_valid = 0
+
+            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT:
+                counters_valid = 0
+
+            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT:
+                counters_valid = 0
+
+            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_PTP_PORT:
+                counters_valid = 0
+
+            response_payload = struct.pack("!2HL",
+                descriptor_type, # descriptor_type
+                descriptor_index, # descriptor_index
+                counters_valid, # counters_valid
+            )+bytes(32*4)
 
         if response is None:
             response = copy.deepcopy(command.aecpdu_header)
