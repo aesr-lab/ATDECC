@@ -1434,7 +1434,7 @@ class EntityModelEntityStateMachine(Thread):
 
             response = copy.deepcopy(command)
             response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
-#            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
 
             response_payload = struct.pack("!2HQ",
                 descriptor_index, # descriptor_index
@@ -1478,7 +1478,7 @@ class EntityModelEntityStateMachine(Thread):
 
             response = copy.deepcopy(command)
             response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
-#            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
 
             if descriptor_type == av.JDKSAVDECC_DESCRIPTOR_ENTITY:
                 counters_valid = 0
