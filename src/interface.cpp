@@ -143,11 +143,8 @@ static int _aecp_aem_check(
 
 enum avdecc_msg_e
 {
-  AVDECC_ADP_MSG,
-  AVDECC_ACMP_MSG,
-  AVDECC_AECP_MSG,
+  AVDECC_THREAD_JOIN = 0,
   AVDECC_FRAME,
-  AVDECC_THREAD_JOIN,
 };
 
 
@@ -163,97 +160,12 @@ union jdksavdecc_du
 class avdecc_msg_t
 {
 public:
-  avdecc_msg_t(avdecc_msg_e _tp, uint16_t _subtp = 0): 
-    tp(_tp), 
-    arg_message_type(_subtp)
-  {}
-
-  virtual ~avdecc_msg_t() {}
-
-  uint16_t arg_message_type;
+  avdecc_msg_t(avdecc_msg_e _tp): tp(_tp) {}
   avdecc_msg_e tp;
+
+  virtual int send(struct raw_context *) { return -1; }
 };
 
-
-class avdecc_adp_msg_t:
-  public avdecc_msg_t
-{
-public:
-  avdecc_adp_msg_t(int msg, uint64_t entity):
-    avdecc_msg_t(AVDECC_ADP_MSG, msg),
-    arg_entity_id(entity)
-  {
-  }
-  
-  int send(struct raw_context *net, struct jdksavdecc_frame *frame, jdksavdecc_adpdu &adpdu) const
-  {
-    uint16_t message_type_code = arg_message_type;
-    int r = 1;
-
-    struct jdksavdecc_eui64 entity_id;
-    jdksavdecc_eui64_init_from_uint64( &entity_id, arg_entity_id );
-
-    if ( adp_form_msg( frame, &adpdu, message_type_code, entity_id ) == 0 ) {
-      if ( raw_send( net, frame->dest_address.value, frame->payload, frame->length ) > 0 ) {
-        // success
-        r = 0;
-      }
-    }
-    else {
-      // unable to form message
-      r = -2;
-    }
-    
-    return r;
-  }
-  
-  uint64_t arg_entity_id;
-};
-
-
-class avdecc_acmp_msg_t:
-  public avdecc_msg_t
-{
-public:
-  avdecc_acmp_msg_t(uint64_t _subtp, int argc, const char **argv):
-    avdecc_msg_t(AVDECC_ACMP_MSG, _subtp)
-  {
-    
-  }
-
-  int send(struct raw_context *net, struct jdksavdecc_frame *frame, jdksavdecc_acmpdu &acmpdu) const
-  {
-    return -1;
-  }
-};
-
-class avdecc_aecp_msg_t:
-  public avdecc_msg_t
-{
-public:
-  avdecc_aecp_msg_t(uint64_t _subtp, int argc, const char **argv):
-    avdecc_msg_t(AVDECC_AECP_MSG, _subtp)
-  {
-    
-  }
-
-  int send(struct raw_context *net, struct jdksavdecc_frame *frame, jdksavdecc_aecpdu_aem &aecpdu) const
-  {
-    /*
-    if ( aecp_aem_form_msg( frame,
-                            &aemdu,
-                            message_type,
-                            command_code,
-                            sequence_id,
-                            destination_mac,
-                            target_entity_id,
-                            command_payload,
-                            command_payload_len ) == 0 ) {
-    }
-    */
-    return -1;
-  }
-};
 
 class avdecc_frame_t:
   public avdecc_msg_t
@@ -265,7 +177,7 @@ public:
     memcpy(&frame, f, sizeof(frame));
   }
 
-  int send(struct raw_context *net, struct jdksavdecc_frame *)
+  virtual int send(struct raw_context *net)
   {
 #if 0
     std::cerr << "Send frame, length=" << std::dec << frame.length << ", bytes=[";
@@ -277,7 +189,8 @@ public:
     }
     std::cerr << std::dec << "]" << std::endl;
 #endif
-//    memcpy( frame.src_address.value, net->m_my_mac, 6 );
+//    jdksavdecc_frame_init( &frame );
+    memcpy( frame.src_address.value, net->m_my_mac, 6 );
     if ( raw_send( net, frame.dest_address.value, frame.payload, frame.length ) > 0 )
       return 0;
     else
@@ -355,12 +268,8 @@ protected:
           if(have) {
             if(msg->tp == AVDECC_THREAD_JOIN)
               ending = true;
-            else {
-              struct jdksavdecc_frame frame;
-              jdksavdecc_frame_init( &frame );
-              memcpy( frame.src_address.value, net.m_my_mac, 6 );
-              send_msg(&net, &frame, *msg);
-            }
+            else
+              msg->send(&net);
             
             delete msg;
           }
@@ -381,28 +290,6 @@ protected:
     }
   }
   
-  // send_msg is only called from the thread worker
-  // can not collide with message reception, i.e., the process method
-  int send_msg(struct raw_context *net, struct jdksavdecc_frame *frame, const avdecc_msg_t &msg)
-  {
-    int r = 1;
-    
-    if(msg.tp == AVDECC_ADP_MSG) {
-      r = static_cast<const avdecc_adp_msg_t &>(msg).send(net, frame, adpdu);
-    }
-    else if(msg.tp == AVDECC_ACMP_MSG) {
-      r = static_cast<const avdecc_acmp_msg_t &>(msg).send(net, frame, acmpdu);
-    }
-    else if(msg.tp == AVDECC_AECP_MSG) {
-      r = static_cast<const avdecc_aecp_msg_t &>(msg).send(net, frame, aecpdu_aem);
-    }
-    else if(msg.tp == AVDECC_FRAME) {
-      r = ((avdecc_frame_t *)(&msg))->send(net, frame);
-    }
-    
-    return r;
-  }
-
 public:
   avdecc_t(const char *intf, AVDECC_ADP_CALLBACK _adp_cb, AVDECC_ACMP_CALLBACK _acmp_cb, AVDECC_AECP_AEM_CALLBACK _aecp_aem_cb): 
     interface(intf),
@@ -463,48 +350,10 @@ AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_destroy(AVDECC_HANDLE handle)
   return 0;
 }
 
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_frame(AVDECC_HANDLE handle, const struct jdksavdecc_frame *frame)
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send(AVDECC_HANDLE handle, const struct jdksavdecc_frame *frame)
 {
   auto avdecc = static_cast<avdecc_t *>(handle);
   auto m = new avdecc_frame_t(frame);
   avdecc->send.push(m);
   return 0;  
-}
-
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_adp(AVDECC_HANDLE handle, uint16_t msg, uint64_t entity)
-{
-  auto avdecc = static_cast<avdecc_t *>(handle);
-  auto m = new avdecc_adp_msg_t(msg, entity);
-  avdecc->send.push(m);
-  return 0;
-}
-
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_get_adpdu(AVDECC_HANDLE handle, struct jdksavdecc_adpdu *adpdu)
-{
-  auto avdecc = static_cast<avdecc_t *>(handle);
-  *adpdu = avdecc->adpdu;
-  return 0;
-}
-
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_set_adpdu(AVDECC_HANDLE handle, const struct jdksavdecc_adpdu *adpdu)
-{
-  auto avdecc = static_cast<avdecc_t *>(handle);
-  avdecc->adpdu = *adpdu;
-  return 0;
-}
-
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_acmp(AVDECC_HANDLE handle, uint16_t msg, int argc, char **argv)
-{
-  auto avdecc = static_cast<avdecc_t *>(handle);
-  auto m = new avdecc_acmp_msg_t(msg, argc, const_cast<const char **>(argv));
-  avdecc->send.push(m);
-  return 0;
-}
-
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_aecp(AVDECC_HANDLE handle, uint16_t msg, int argc, char **argv)
-{
-  auto avdecc = static_cast<avdecc_t *>(handle);
-  auto m = new avdecc_aecp_msg_t(msg, argc, const_cast<const char **>(argv));
-  avdecc->send.push(m);
-  return 0;
 }

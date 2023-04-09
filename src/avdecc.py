@@ -3,7 +3,7 @@
 import ctypes
 import struct
 import avdecc_api as av
-from avdecc_api import AVDECC_create, AVDECC_destroy, AVDECC_send_frame, AVDECC_send_adp, AVDECC_set_adpdu, AVDECC_send_acmp, AVDECC_send_aecp
+from avdecc_api import AVDECC_create, AVDECC_destroy, AVDECC_send
 import time
 import logging
 from threading import Thread, Event
@@ -114,23 +114,17 @@ class jdksInterface:
     
     def send_adp(self, msg, entity):
         pdu = entity.get_adpdu()
-        if True:
-            frame = adp_form_msg(pdu, msg, uint64_to_eui64(entity.entity_id))
-            res = AVDECC_send_frame(self.handle, frame)
-            assert res == 0
-        else:
-            res = AVDECC_set_adpdu(self.handle, pdu)
-            assert res == 0
-            res = AVDECC_send_adp(self.handle, msg, av.uint64_t(entity.entity_id))
-            assert res == 0
 #        logging.debug("AVDECC_send_adp: %s", adpdu_str(pdu))
+        frame = adp_form_msg(pdu, msg, uint64_to_eui64(entity.entity_id))
+        res = AVDECC_send(self.handle, frame)
+        assert res == 0
 
     def send_aecp(self, pdu, payload):
 #        logging.debug(f"AVDECC_send_aecp: %s", aecpdu_aem_str(pdu))
         frame = aecp_form_msg(pdu, command_payload=payload)
 #        if frame.payload:
 #            logging.debug("frame payload: %s", bytes(frame.payload).hex())
-        res = AVDECC_send_frame(self.handle, frame)
+        res = AVDECC_send(self.handle, frame)
 
     def register_adp_cb(self, cb):
         self.adp_cbs.append(cb)

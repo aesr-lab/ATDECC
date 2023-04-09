@@ -45,12 +45,4 @@ typedef void (AVDECC_C_CALL_CONVENTION* AVDECC_AECP_AEM_CALLBACK)(AVDECC_HANDLE 
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_create(AVDECC_HANDLE *handle, const_string_t intf, AVDECC_ADP_CALLBACK adp_cb, AVDECC_ACMP_CALLBACK acmp_cb, AVDECC_AECP_AEM_CALLBACK aecp_aem_cb);
 AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_destroy(AVDECC_HANDLE handle);
 
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_frame(AVDECC_HANDLE handle, const struct jdksavdecc_frame *frame);
-
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_adp(AVDECC_HANDLE handle, uint16_t msg, uint64_t entity);
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_get_adpdu(AVDECC_HANDLE handle, struct jdksavdecc_adpdu *adpdu);
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_set_adpdu(AVDECC_HANDLE handle, const struct jdksavdecc_adpdu *adpdu);
-
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_acmp(AVDECC_HANDLE handle, uint16_t msg, int argc, char **argv);
-
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send_aecp(AVDECC_HANDLE handle, uint16_t msg, int argc, char **argv);
+AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send(AVDECC_HANDLE handle, const struct jdksavdecc_frame *frame);
