@@ -2,8 +2,8 @@
 
 import ctypes
 import struct
-import avdecc_api as av
-from avdecc_api import AVDECC_create, AVDECC_destroy, AVDECC_send
+import atdecc_api as av
+from atdecc_api import ATDECC_create, ATDECC_destroy, ATDECC_send
 import time
 import logging
 from threading import Thread, Event
@@ -61,8 +61,8 @@ class EntityInfo:
         self.association_id = association_id
         
     def get_adpdu(self):
-        return av.struct_jdksavdecc_adpdu(
-            header = av.struct_jdksavdecc_adpdu_common_control_header(
+        return at.struct_jdksavdecc_adpdu(
+            header = at.struct_jdksavdecc_adpdu_common_control_header(
                 valid_time=max(0,min(int(self.valid_time/2.+0.5),31)),
                 entity_id=uint64_to_eui64(self.entity_id),
             ),
@@ -95,36 +95,36 @@ class jdksInterface:
 
         self.handle = ctypes.c_void_p()
         intf = ctypes.c_char_p(self.ifname.encode())
-        res = AVDECC_create(ctypes.byref(self.handle), 
+        res = ATDECC_create(ctypes.byref(self.handle), 
                             intf, 
                             self._adp_cb, 
                             self._acmp_cb, 
                             self._aecp_aem_cb
                             )
         assert res == 0
-        logging.debug("AVDECC_create done")
+        logging.debug("ATDECC_create done")
         jdksInterface.handles[self.handle.value] = self  # register instance
     
     def __del__(self):
-        res = AVDECC_destroy(self.handle)
-        logging.debug("AVDECC_destroy done")
+        res = ATDECC_destroy(self.handle)
+        logging.debug("ATDECC_destroy done")
         assert res == 0
         del self.handles[self.handle.value]  # unregister instance
         self.handle.value = None
     
     def send_adp(self, msg, entity):
         pdu = entity.get_adpdu()
-#        logging.debug("AVDECC_send_adp: %s", adpdu_str(pdu))
+#        logging.debug("ATDECC_send_adp: %s", adpdu_str(pdu))
         frame = adp_form_msg(pdu, msg, uint64_to_eui64(entity.entity_id))
-        res = AVDECC_send(self.handle, frame)
+        res = ATDECC_send(self.handle, frame)
         assert res == 0
 
     def send_aecp(self, pdu, payload):
-#        logging.debug(f"AVDECC_send_aecp: %s", aecpdu_aem_str(pdu))
+#        logging.debug(f"ATDECC_send_aecp: %s", aecpdu_aem_str(pdu))
         frame = aecp_form_msg(pdu, command_payload=payload)
 #        if frame.payload:
 #            logging.debug("frame payload: %s", bytes(frame.payload).hex())
-        res = AVDECC_send(self.handle, frame)
+        res = ATDECC_send(self.handle, frame)
 
     def register_adp_cb(self, cb):
         self.adp_cbs.append(cb)
@@ -144,7 +144,7 @@ class jdksInterface:
     def unregister_aecp_aem_cb(self, cb):
         self.aecp_aem_cbs.remove(cb)
 
-    @av.AVDECC_ADP_CALLBACK
+    @at.ATDECC_ADP_CALLBACK
     def _adp_cb(handle, frame_ptr, adpdu_ptr):
         this = jdksInterface.handles[handle]
         du = adpdu_ptr.contents
@@ -154,7 +154,7 @@ class jdksInterface:
             for cb in this.adp_cbs:
                 cb(du)
 
-    @av.AVDECC_ACMP_CALLBACK
+    @at.ATDECC_ACMP_CALLBACK
     def _acmp_cb(handle, frame_ptr, acmpdu_ptr):
         this = jdksInterface.handles[handle]
         du = acmpdu_ptr.contents
@@ -164,7 +164,7 @@ class jdksInterface:
             for cb in this.acmp_cbs:
                 cb(du)
 
-    @av.AVDECC_AECP_AEM_CALLBACK
+    @at.ATDECC_AECP_AEM_CALLBACK
     def _aecp_aem_cb(handle, frame_ptr, aecpdu_aem_ptr):
         this = jdksInterface.handles[handle]
         du = aecpdu_aem_ptr.contents
@@ -297,14 +297,14 @@ if 0:
             The txEntityAvailable function transmits an ENTITY_AVAILABLE message
             """
             for intf in self.interfaces:
-                intf.send_adp(av.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity_info)
+                intf.send_adp(at.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity_info)
 
         def txEntityDeparting(self):
             """
             The txEntityAvailable function transmits an ENTITY_DEPARTING message
             """
             for intf in self.interfaces:
-                intf.send_adp(av.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity_info)
+                intf.send_adp(at.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity_info)
 
         def run(self):
             logging.debug("AdvertisingInterfaceStateMachine: Starting thread")
@@ -518,7 +518,7 @@ class InterfaceStateMachine(Thread):
         The txEntityAvailable function transmits an ENTITY_AVAILABLE message
         """
         for intf in self.interfaces:
-            intf.send_adp(av.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity_info)
+            intf.send_adp(at.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity_info)
 
         self.entity_info.available_index += 1        
 
@@ -527,7 +527,7 @@ class InterfaceStateMachine(Thread):
         The txEntityAvailable function transmits an ENTITY_DEPARTING message
         """
         for intf in self.interfaces:
-            intf.send_adp(av.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity_info)
+            intf.send_adp(at.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity_info)
 
         self.entity_info.available_index = 0
 
@@ -535,7 +535,7 @@ class InterfaceStateMachine(Thread):
     def adp_cb(self, adpdu):
 #        logging.info("ADP: %s", adpdu_str(adpdu))
 
-        if adpdu.header.message_type == av.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER:
+        if adpdu.header.message_type == at.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER:
             self.rcvdDiscover.put(copy.deepcopy(adpdu.header.entity_id))
 
     def run(self):
@@ -628,7 +628,7 @@ class ACMPListenerStateMachine(
         logging.debug("doTerminate")
         self.event.set()
 
-    def acmp_cb(self, acmpdu: av.struct_jdksavdecc_acmpdu):
+    def acmp_cb(self, acmpdu: at.struct_jdksavdecc_acmpdu):
         if eui64_to_uint64(acmpdu.listener_entity_id) == self.my_id:
             logging.info("ACMP: %s", acmpdu_str(acmpdu))
             self.queue.put(copy.deepcopy(acmpdu)) # copy structure (will probably be overwritten)
@@ -822,28 +822,28 @@ class ACMPListenerStateMachine(
                 
                     while len(self.inflight) and ct >= self.inflight[0].timeout:
                         infl = self.inflight.pop(0)
-                        if infl.command.message_type == av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND:
+                        if infl.command.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND:
                             # CONNECT TX TIMEOUT
                             if infl.retried:
                                 response = infl.command
                                 response.sequence_id = infl.original_sequence_id
                                 listenerInfo = self.listenerStreamInfos[rcvdCmdResp.listener_unique_id]
                                 listenerInfo.pending_connection = False
-                                self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, response, av.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
+                                self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, response, at.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
                             else:
                                 # Retry
-                                self.txCommand(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, infl.command, True)
+                                self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, infl.command, True)
                                 infl.retried = True
                                 retried.append(infl)
                         
-                        elif infl.command.message_type == av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND:
+                        elif infl.command.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND:
                             # DISCONNECT TX TIMEOUT
                             if infl.retried:
                                 response = infl.command
                                 response.sequence_id = infl.original_sequence_id
-                                self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, av.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
+                                self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, at.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
                             else:
-                                self.txCommand(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, infl.command, True)
+                                self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, infl.command, True)
                                 infl.retried = True
                                 retried.append(infl)
                         
@@ -857,17 +857,17 @@ class ACMPListenerStateMachine(
 
                     if self.validListenerUnique(self.rcvdCmdResp.listener_unique_id):
                         if self.listenerIsAcquiredOrLockedByOther(self.rcvdCmdResp):
-                            self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, self.rcvdCmdResp, av.JDKSAVDECC_ACMP_STATUS_CONTROLLER_NOT_AUTHORIZED)
+                            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_CONTROLLER_NOT_AUTHORIZED)
                         elif self.listenerIsConnected(self.rcvdCmdResp):
-                            self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, self.rcvdCmdResp, av.JDKSAVDECC_ACMP_STATUS_LISTENER_EXCLUSIVE)
+                            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_LISTENER_EXCLUSIVE)
                         else:
-                            if self.txCommand(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, self.rcvdCmdResp, False):
+                            if self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, self.rcvdCmdResp, False):
                                 listenerInfo = self.listenerStreamInfos[self.rcvdCmdResp.listener_unique_id]
                                 listenerInfo.talker_entity_id = self.rcvdCmdResp.talker_entity_id
                                 listenerInfo.talker_unique_id = self.rcvdCmdResp.talker_unique_id
                                 listenerInfo.pending_connection = True
                     else:
-                        self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, self.rcvdCmdResp, av.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
+                        self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
 
                     self.rcvdConnectRXCmd = False
 
@@ -876,7 +876,7 @@ class ACMPListenerStateMachine(
                     logging.debug("Received Connect TX response")
 
                     if  self.validListenerUnique(self.rcvdCmdResp.listener_unique_id):
-                        if self.rcvdCmdResp.status == av.JDKSAVDECC_ACMP_STATUS_SUCCESS:
+                        if self.rcvdCmdResp.status == at.JDKSAVDECC_ACMP_STATUS_SUCCESS:
                             response, status = self.connectListener(self.rcvdCmdResp)
                         else:
                             response, status = (self.rcvdCmdResp, self.rcvdCmdResp.status)
@@ -889,7 +889,7 @@ class ACMPListenerStateMachine(
                         response.sequence_id = inflight[x].original_sequence_id # ????
                         self.cancelTimeout(self.rcvdCmdResp)
                         removeInflight(rcvdCmdResp) # ????
-                        self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, response, status)
+                        self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, response, status)
 
                     self.rcvdConnectTXResp = False
 
@@ -900,9 +900,9 @@ class ACMPListenerStateMachine(
                     if self.validListenerUnique(self.rcvdCmdResp.listener_unique_id):
                         response, error = self.getState(self.rcvdCmdResp)
                     else:
-                        response, error = (self.rcvdCmdResp, av.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
+                        response, error = (self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
                     
-                    self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_GET_RX_STATE_RESPONSE, response, error)
+                    self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_GET_RX_STATE_RESPONSE, response, error)
 
                     self.rcvdGetRXState = False
 
@@ -913,14 +913,14 @@ class ACMPListenerStateMachine(
                     if self.validListenerUnique(self.rcvdCmdResp.listener_unique_id):
                         if self.listenerIsConnectedTo(self.rcvdCmdResp):
                             response, status = self.disconnectListener(self.rcvdCmdResp)
-                            if status == av.JDKSAVDECC_ACMP_STATUS_SUCCESS:
-                                self.txCommand(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, self.rcvdCmdResp, False)
+                            if status == at.JDKSAVDECC_ACMP_STATUS_SUCCESS:
+                                self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, self.rcvdCmdResp, False)
                             else:
-                                self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, status)
+                                self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, status)
                         else:
-                            self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, self.rcvdCmdResp, av.JDKSAVDECC_ACMP_STATUS_NOT_CONNECTED)
+                            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_NOT_CONNECTED)
                     else:
-                        self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, self.rcvdCmdResp, av.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
+                        self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
 
                     self.rcvdDisconnectRXCmd = False
 
@@ -936,7 +936,7 @@ class ACMPListenerStateMachine(
                         response.sequence_id = inflight[x].original_sequence_id # ???
                         self.cancelTimeout(self.rcvdCmdResp)
                         removeInflight(self.rcvdCmdResp)  # ???
-                        self.txResponse(av.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, status)
+                        self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, status)
 
                     self.rcvdDisconnectTXResp = False
             except Exception as e:
@@ -977,17 +977,17 @@ class EntityModelEntityStateMachine(Thread):
         logging.debug("doTerminate")
         self.event.set()
         
-    def aecp_aem_cb(self, aecp_aemdu: av.struct_jdksavdecc_aecpdu_common, payload=None):
+    def aecp_aem_cb(self, aecp_aemdu: at.struct_jdksavdecc_aecpdu_common, payload=None):
         if eui64_to_uint64(aecp_aemdu.aecpdu_header.header.target_entity_id) == self.entity_info.entity_id:
             logging.info("AECP AEM: %s", aecpdu_aem_str(aecp_aemdu))
 
 #            print(f"AECP %x: %s"%(aecp_aemdu.aecpdu_header.header.message_type, hexdump(payload[:16])))
 
-            if aecp_aemdu.aecpdu_header.header.message_type == av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_COMMAND:
+            if aecp_aemdu.aecpdu_header.header.message_type == at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_COMMAND:
                 self.rcvdCommand.put((copy.deepcopy(aecp_aemdu), payload)) # copy structure, will probably be overwritten
                 self.event.set()
 
-    def acquireEntity(self, command: av.struct_jdksavdecc_aecpdu_aem, payload):
+    def acquireEntity(self, command: at.struct_jdksavdecc_aecpdu_aem, payload):
         """
         The acquireEntity function is used to handle the receipt, processing and respond to an ACQUIRE_ENTITY AEM Command (7.4.1).
         
@@ -1004,12 +1004,12 @@ class EntityModelEntityStateMachine(Thread):
         aem_acquire_flags, owner_entity_id, descriptor_type, descriptor_index = struct.unpack_from("!LQHH", payload)
 
         # Generate response struct
-        response=av.struct_jdksavdecc_aecpdu_aem(
+        response=at.struct_jdksavdecc_aecpdu_aem(
             aecpdu_header=copy.deepcopy(command.aecpdu_header),
-            command_type=av.JDKSAVDECC_AEM_COMMAND_ACQUIRE_ENTITY,
+            command_type=at.JDKSAVDECC_AEM_COMMAND_ACQUIRE_ENTITY,
         )
  
-        if descriptor_type == av.JDKSAVDECC_DESCRIPTOR_ENTITY:
+        if descriptor_type == at.JDKSAVDECC_DESCRIPTOR_ENTITY:
             # we only support DESCRIPTOR_ENTITY
             controller_id = eui64_to_uint64(command.aecpdu_header.controller_entity_id)
 
@@ -1021,25 +1021,25 @@ class EntityModelEntityStateMachine(Thread):
                 # Release controller if id matches
                 if self.owner_entity_id == controller_id:
                     self.owner_entity_id = 0
-                    status = av.JDKSAVDECC_AEM_STATUS_SUCCESS
+                    status = at.JDKSAVDECC_AEM_STATUS_SUCCESS
                 else:
                     # id doesn't match
-                    status = av.JDKSAVDECC_AEM_STATUS_BAD_ARGUMENTS
+                    status = at.JDKSAVDECC_AEM_STATUS_BAD_ARGUMENTS
             else:
                 # Acquire controller
                 if self.owner_entity_id:
                     # already acquired
-                    status = av.JDKSAVDECC_AEM_STATUS_ENTITY_ACQUIRED
+                    status = at.JDKSAVDECC_AEM_STATUS_ENTITY_ACQUIRED
                 else:
                     self.owner_entity_id = controller_id
-                    status = av.JDKSAVDECC_AEM_STATUS_SUCCESS
+                    status = at.JDKSAVDECC_AEM_STATUS_SUCCESS
                 
-            status = av.JDKSAVDECC_AEM_STATUS_SUCCESS
+            status = at.JDKSAVDECC_AEM_STATUS_SUCCESS
         else:
-            status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+            status = at.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
 
         # We build
-        # av.struct_jdksavdecc_aem_command_acquire_entity_response
+        # at.struct_jdksavdecc_aem_command_acquire_entity_response
         # as payload
         resp_payload = struct.pack("!LQHH",
             aem_acquire_flags, # aem_acquire_flags
@@ -1049,14 +1049,14 @@ class EntityModelEntityStateMachine(Thread):
         )
 
         # Make it a response
-        response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+        response.aecpdu_header.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
         response.aecpdu_header.header.status = status
         
         logging.debug("ACQUIRE_ENTITY done")
         
         return response, resp_payload
         
-    def lockEntity(self, command: av.struct_jdksavdecc_aecpdu_aem, payload):
+    def lockEntity(self, command: at.struct_jdksavdecc_aecpdu_aem, payload):
         """
         The lockEntity is used to handle the receipt, processing and respond to an LOCK_ENTITY AEM Command (7.4.2).
         The lockEntity function returns a AEMCommandResponse structure filled in with the appropriate details from the command, 
@@ -1067,14 +1067,14 @@ class EntityModelEntityStateMachine(Thread):
         logging.debug("LOCK_ENTITY")
         
         response = copy.deepcopy(command)
-        response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
-        response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+        response.aecpdu_header.header.status = at.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+        response.aecpdu_header.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
 
         logging.debug("LOCK_ENTITY done")
         
         return response, bytes()
         
-    def entityAvailable(self, command: av.struct_jdksavdecc_aecpdu_aem, payload):
+    def entityAvailable(self, command: at.struct_jdksavdecc_aecpdu_aem, payload):
         """
         The lockEntity is used to handle the receipt, processing and respond to an LOCK_ENTITY AEM Command (7.4.2).
         The lockEntity function returns a AEMCommandResponse structure filled in with the appropriate details from the command, 
@@ -1085,15 +1085,15 @@ class EntityModelEntityStateMachine(Thread):
         logging.debug("ENTITY_AVAILABLE")
         
         response = copy.deepcopy(command)
-        response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
-        response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+        response.aecpdu_header.header.status = at.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+        response.aecpdu_header.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
 
         logging.debug("ENTITY_AVAILABLE done")
         
         return response, bytes()
 
 
-    def processCommand(self, command: av.struct_jdksavdecc_aecpdu_aem, payload):
+    def processCommand(self, command: at.struct_jdksavdecc_aecpdu_aem, payload):
         """
         The processCommand is used to handle the receipt, processing and respond to an AEM Command other than 
         ACQUIRE_ENTITY and LOCK_ENTITY.
@@ -1110,39 +1110,39 @@ class EntityModelEntityStateMachine(Thread):
         response = None
         response_payload = None
         
-        if command.command_type == av.JDKSAVDECC_AEM_COMMAND_REGISTER_UNSOLICITED_NOTIFICATION:
+        if command.command_type == at.JDKSAVDECC_AEM_COMMAND_REGISTER_UNSOLICITED_NOTIFICATION:
             eid = eui64_to_uint64(command.aecpdu_header.controller_entity_id)
             self.unsolicited_list.add(eid)
             logging.debug(f"Added eid={eid} to unsolicited_list")
 
             response = copy.deepcopy(command)
-            response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+            response.aecpdu_header.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
             response_payload = struct.pack("!L", 0)
 
-        elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_DEREGISTER_UNSOLICITED_NOTIFICATION:
+        elif command.command_type == at.JDKSAVDECC_AEM_COMMAND_DEREGISTER_UNSOLICITED_NOTIFICATION:
             eid = eui64_to_uint64(command.aecpdu_header.controller_entity_id)
             try:
                 self.unsolicited_list.remove(eid)
                 logging.debug(f"Removed eid={eid} from unsolicited_list")
-                status = av.JDKSAVDECC_AEM_STATUS_SUCCESS
+                status = at.JDKSAVDECC_AEM_STATUS_SUCCESS
             except KeyError:
-                status = av.JDKSAVDECC_AEM_STATUS_BAD_ARGUMENTS
+                status = at.JDKSAVDECC_AEM_STATUS_BAD_ARGUMENTS
 
             response = copy.deepcopy(command)
-            response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+            response.aecpdu_header.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
             response.aecpdu_header.header.status = status
             response_payload = struct.pack("!L", 0)
 
-        elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_READ_DESCRIPTOR:
+        elif command.command_type == at.JDKSAVDECC_AEM_COMMAND_READ_DESCRIPTOR:
             em = self.entity_info
             _, _, descriptor_type, descriptor_index = struct.unpack_from("!4H", payload)
             configuration_index = 0 # need to adjust if more than one configuration
 
             logging.debug("READ_DESCRIPTOR %s", api_enum('JDKSAVDECC_DESCRIPTOR_', descriptor_type))
 
-            if descriptor_type == av.JDKSAVDECC_DESCRIPTOR_ENTITY:
+            if descriptor_type == at.JDKSAVDECC_DESCRIPTOR_ENTITY:
                 configuration_index = 0 # always 0
-                descriptor = av.struct_jdksavdecc_descriptor_entity(
+                descriptor = at.struct_jdksavdecc_descriptor_entity(
                     descriptor_type=descriptor_type, 
                     descriptor_index=descriptor_index,
                     entity_id=uint64_to_eui64(em.entity_id),
@@ -1166,9 +1166,9 @@ class EntityModelEntityStateMachine(Thread):
                 )
                 response_payload = pack_struct(descriptor)
 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_CONFIGURATION:
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_CONFIGURATION:
                 configuration_index = 0 # always 0
-                descriptor = av.struct_jdksavdecc_descriptor_configuration(
+                descriptor = at.struct_jdksavdecc_descriptor_configuration(
                     descriptor_type=descriptor_type, 
                     descriptor_index=descriptor_index,
                     object_name=str_to_avstr("16 in"),
@@ -1177,39 +1177,39 @@ class EntityModelEntityStateMachine(Thread):
                     descriptor_counts_offset=74,
                 )
                 descriptor_counts = struct.pack("!10H",
-                    av.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT, 1,
-#                    av.JDKSAVDECC_DESCRIPTOR_VIDEO_UNIT, 0,
-#                    av.JDKSAVDECC_DESCRIPTOR_SENSOR_UNIT, 0,
-                    av.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT, 1,
-#                    av.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT, 0,
-#                    av.JDKSAVDECC_DESCRIPTOR_JACK_INPUT, 0,
-#                    av.JDKSAVDECC_DESCRIPTOR_JACK_OUTPUT, 16,
-                    av.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE, 1,
-                    av.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE, 1,
-#                    av.JDKSAVDECC_DESCRIPTOR_CONTROL, 1,
-#                    av.JDKSAVDECC_DESCRIPTOR_SIGNAL_SELECTOR, 1,
-#                    av.JDKSAVDECC_DESCRIPTOR_MIXER, 1,
-#                    av.JDKSAVDECC_DESCRIPTOR_MATRIX, 1,
-#                    av.JDKSAVDECC_DESCRIPTOR_LOCALE, 1,
-#                    av.JDKSAVDECC_DESCRIPTOR_MATRIX_SIGNAL, 1,
-#                    av.JDKSAVDECC_DESCRIPTOR_MEMORY_OBJECT, 0,
-#                    av.JDKSAVDECC_DESCRIPTOR_SIGNAL_SPLITTER, 0,
-#                    av.JDKSAVDECC_DESCRIPTOR_SIGNAL_COMBINER, 0,
-#                    av.JDKSAVDECC_DESCRIPTOR_SIGNAL_DEMULTIPLEXER, 0,
-#                    av.JDKSAVDECC_DESCRIPTOR_SIGNAL_MULTIPLEXER, 0,
-#                    av.JDKSAVDECC_DESCRIPTOR_SIGNAL_TRANSCODER, 0,
-                    av.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN, 1,
-#                    av.JDKSAVDECC_DESCRIPTOR_CONTROL_BLOCK, 0,
-#                    av.JDKSAVDECC_DESCRIPTOR_TIMING, 0,
-#                    av.JDKSAVDECC_DESCRIPTOR_PTP_INSTANCE, 0,
+                    at.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT, 1,
+#                    at.JDKSAVDECC_DESCRIPTOR_VIDEO_UNIT, 0,
+#                    at.JDKSAVDECC_DESCRIPTOR_SENSOR_UNIT, 0,
+                    at.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT, 1,
+#                    at.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT, 0,
+#                    at.JDKSAVDECC_DESCRIPTOR_JACK_INPUT, 0,
+#                    at.JDKSAVDECC_DESCRIPTOR_JACK_OUTPUT, 16,
+                    at.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE, 1,
+                    at.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE, 1,
+#                    at.JDKSAVDECC_DESCRIPTOR_CONTROL, 1,
+#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_SELECTOR, 1,
+#                    at.JDKSAVDECC_DESCRIPTOR_MIXER, 1,
+#                    at.JDKSAVDECC_DESCRIPTOR_MATRIX, 1,
+#                    at.JDKSAVDECC_DESCRIPTOR_LOCALE, 1,
+#                    at.JDKSAVDECC_DESCRIPTOR_MATRIX_SIGNAL, 1,
+#                    at.JDKSAVDECC_DESCRIPTOR_MEMORY_OBJECT, 0,
+#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_SPLITTER, 0,
+#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_COMBINER, 0,
+#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_DEMULTIPLEXER, 0,
+#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_MULTIPLEXER, 0,
+#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_TRANSCODER, 0,
+                    at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN, 1,
+#                    at.JDKSAVDECC_DESCRIPTOR_CONTROL_BLOCK, 0,
+#                    at.JDKSAVDECC_DESCRIPTOR_TIMING, 0,
+#                    at.JDKSAVDECC_DESCRIPTOR_PTP_INSTANCE, 0,
                 )
                 response_payload = pack_struct(descriptor)+descriptor_counts
 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT:
-                descriptor = av.struct_jdksavdecc_descriptor_audio_unit(
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT:
+                descriptor = at.struct_jdksavdecc_descriptor_audio_unit(
                     descriptor_type=descriptor_type, 
                     descriptor_index=descriptor_index,
-                    object_name=av.struct_jdksavdecc_string(),
+                    object_name=at.struct_jdksavdecc_string(),
                     localized_description=0,
                     clock_domain_index=0,
                     number_of_stream_input_ports=2,
@@ -1251,8 +1251,8 @@ class EntityModelEntityStateMachine(Thread):
                 sample_rates = struct.pack("!1L", 48000) # the 3 MSBs are used for a multiplier: 000 here, means multiplier 1.
                 response_payload = pack_struct(descriptor)+sample_rates
 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT:
-                descriptor = av.struct_jdksavdecc_descriptor_stream_port(
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT:
+                descriptor = at.struct_jdksavdecc_descriptor_stream_port(
                     descriptor_type=descriptor_type, 
                     descriptor_index=descriptor_index,
                     clock_domain_index=0,
@@ -1268,15 +1268,15 @@ class EntityModelEntityStateMachine(Thread):
                 )
                 response_payload = pack_struct(descriptor)
 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT:
-                descriptor = av.struct_jdksavdecc_descriptor_stream(
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT:
+                descriptor = at.struct_jdksavdecc_descriptor_stream(
                     descriptor_type=descriptor_type, 
                     descriptor_index=descriptor_index,
                     object_name=str_to_avstr(f"Audio Input Stream {descriptor_index+1}"),
                     localized_description=0,
                     clock_domain_index=0,
-                    stream_flags=av.JDKSAVDECC_DESCRIPTOR_STREAM_FLAG_CLOCK_SYNC_SOURCE +
-                                    av.JDKSAVDECC_DESCRIPTOR_STREAM_FLAG_CLASS_A +
+                    stream_flags=at.JDKSAVDECC_DESCRIPTOR_STREAM_FLAG_CLOCK_SYNC_SOURCE +
+                                    at.JDKSAVDECC_DESCRIPTOR_STREAM_FLAG_CLASS_A +
                                     0x8000,  # SUPPORTS_NO_SRP - new flag 
                     current_format=uint64_to_eui64(0x0205022002006000),
                     formats_offset=138,
@@ -1302,17 +1302,17 @@ class EntityModelEntityStateMachine(Thread):
                 )
                 response_payload = pack_struct(descriptor)+formats
 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE:
-                descriptor = av.struct_jdksavdecc_descriptor_avb_interface(
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE:
+                descriptor = at.struct_jdksavdecc_descriptor_avb_interface(
                     descriptor_type=descriptor_type, 
                     descriptor_index=descriptor_index,
-                    object_name=av.struct_jdksavdecc_string(),
+                    object_name=at.struct_jdksavdecc_string(),
                     localized_description=0,
                     mac_address=uint64_to_eui48(0x1007236de8b9),
                     interface_flags= \
-#                        av.JDKSAVDECC_AVB_INTERFACE_FLAG_GPTP_GRANDMASTER_SUPPORTED +
-                        av.JDKSAVDECC_AVB_INTERFACE_FLAG_GPTP_SUPPORTED,
-#                       av.JDKSAVDECC_AVB_INTERFACE_FLAG_SRP_SUPPORTED,
+#                        at.JDKSAVDECC_AVB_INTERFACE_FLAG_GPTP_GRANDMASTER_SUPPORTED +
+                        at.JDKSAVDECC_AVB_INTERFACE_FLAG_GPTP_SUPPORTED,
+#                       at.JDKSAVDECC_AVB_INTERFACE_FLAG_SRP_SUPPORTED,
                     clock_identity=uint64_to_eui64(self.entity_info.entity_id),
                     priority1=0,
                     clock_class=0,
@@ -1330,26 +1330,26 @@ class EntityModelEntityStateMachine(Thread):
                 )
                 response_payload = pack_struct(descriptor)
                 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_AUDIO_CLUSTER:
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_AUDIO_CLUSTER:
                 ch_start = descriptor_index*8
-                descriptor = av.struct_jdksavdecc_descriptor_audio_cluster(
+                descriptor = at.struct_jdksavdecc_descriptor_audio_cluster(
                     descriptor_type=descriptor_type, 
                     descriptor_index=descriptor_index,
                     object_name=str_to_avstr(f"Channels {ch_start+1}-{ch_start+8} In"),
                     localized_description=0,
-                    signal_type=av.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT,  # The descriptor_type for the signal source of the cluster.
+                    signal_type=at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT,  # The descriptor_type for the signal source of the cluster.
                     signal_index=descriptor_index,  # The descriptor_index for the signal source of the cluster.
                     signal_output=0,
                     path_latency=0,
                     block_latency=0,
                     channel_count=8,
-                    format=av.JDKSAVDECC_AUDIO_CLUSTER_FORMAT_MBLA,
+                    format=at.JDKSAVDECC_AUDIO_CLUSTER_FORMAT_MBLA,
                     PADDING_0=0,
                 )
                 response_payload = pack_struct(descriptor)
                 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_AUDIO_MAP:
-                descriptor = av.struct_jdksavdecc_descriptor_audio_map(
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_AUDIO_MAP:
+                descriptor = at.struct_jdksavdecc_descriptor_audio_map(
                     descriptor_type=descriptor_type, 
                     descriptor_index=descriptor_index,
                     mappings_offset=8,
@@ -1360,8 +1360,8 @@ class EntityModelEntityStateMachine(Thread):
                 mappings = struct.pack("!32H", *flatten_list(m))
                 response_payload = pack_struct(descriptor)+mappings
                 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN:
-                descriptor = av.struct_jdksavdecc_descriptor_clock_domain(
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN:
+                descriptor = at.struct_jdksavdecc_descriptor_clock_domain(
                     descriptor_type=descriptor_type, 
                     descriptor_index=descriptor_index,
                     object_name=str_to_avstr(""),
@@ -1374,8 +1374,8 @@ class EntityModelEntityStateMachine(Thread):
                 clk_sources = struct.pack("!H", 0)
                 response_payload = pack_struct(descriptor)+clk_sources
                 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE:
-                descriptor = av.struct_jdksavdecc_descriptor_clock_source(
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE:
+                descriptor = at.struct_jdksavdecc_descriptor_clock_source(
                     descriptor_type=descriptor_type, 
                     descriptor_index=descriptor_index,
                     object_name=str_to_avstr(""),
@@ -1383,7 +1383,7 @@ class EntityModelEntityStateMachine(Thread):
                     clock_source_flags=0x0001, # Table 7-16: LOCAL_ID
                     clock_source_type=0x0002, # Table 7-17: INPUT_STREAM
                     clock_source_identifier=uint64_to_eui64(0xffffffffffffffff),
-                    clock_source_location_type=av.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN,
+                    clock_source_location_type=at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN,
                     clock_source_location_index=0,
                 )
                 response_payload = pack_struct(descriptor)
@@ -1393,12 +1393,12 @@ class EntityModelEntityStateMachine(Thread):
             
             if descriptor is not None:
                 response = copy.deepcopy(command)
-                response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
-                response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_SUCCESS
+                response.aecpdu_header.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+                response.aecpdu_header.header.status = at.JDKSAVDECC_AEM_STATUS_SUCCESS
                 prefix = struct.pack("!2H", configuration_index, 0)
                 response_payload = prefix+response_payload
 
-        elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_GET_AVB_INFO:
+        elif command.command_type == at.JDKSAVDECC_AEM_COMMAND_GET_AVB_INFO:
             descriptor_type, descriptor_index = struct.unpack_from("!2H", payload)
 
             logging.debug("GET_AVB_INFO: descriptor_type=%s, descriptor_index=%d"%(
@@ -1407,8 +1407,8 @@ class EntityModelEntityStateMachine(Thread):
             )
 
             response = copy.deepcopy(command)
-            response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
-#            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+            response.aecpdu_header.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+#            response.aecpdu_header.header.status = at.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
 
             response_payload = struct.pack("!2HQLBBH",
                 descriptor_type, # descriptor_type
@@ -1421,14 +1421,14 @@ class EntityModelEntityStateMachine(Thread):
                 # N msrp_mappings "BBH" (traffic_class, priority, vlan_id)
             )
 
-        elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_GET_AS_PATH:
+        elif command.command_type == at.JDKSAVDECC_AEM_COMMAND_GET_AS_PATH:
             descriptor_index, _ = struct.unpack_from("!2H", payload)
 
             logging.debug("GET_AS_PATH: descriptor_index=%d"%descriptor_index)
 
             response = copy.deepcopy(command)
-            response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
-            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+            response.aecpdu_header.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+            response.aecpdu_header.header.status = at.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
 
             response_payload = struct.pack("!2HQ",
                 descriptor_index, # descriptor_index
@@ -1436,7 +1436,7 @@ class EntityModelEntityStateMachine(Thread):
                 self.entity_info.entity_id, # Grandmaster ID
             )
 
-        elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_GET_AUDIO_MAP:
+        elif command.command_type == at.JDKSAVDECC_AEM_COMMAND_GET_AUDIO_MAP:
             descriptor_type, descriptor_index, map_index, _ = struct.unpack_from("!4H", payload)
 
             logging.debug("GET_AUDIO_MAP: descriptor_type=%s, descriptor_index=%d"%(
@@ -1445,8 +1445,8 @@ class EntityModelEntityStateMachine(Thread):
             )
 
             response = copy.deepcopy(command)
-            response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
-            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+            response.aecpdu_header.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+            response.aecpdu_header.header.status = at.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
 
             response_payload = struct.pack("!6H",
                 descriptor_type, # descriptor_type
@@ -1462,7 +1462,7 @@ class EntityModelEntityStateMachine(Thread):
             mappings = struct.pack("!32H", *flatten_list(m))
             response_payload = pack_struct(descriptor) #+mappings
 
-        elif command.command_type == av.JDKSAVDECC_AEM_COMMAND_GET_COUNTERS:
+        elif command.command_type == at.JDKSAVDECC_AEM_COMMAND_GET_COUNTERS:
             descriptor_type, descriptor_index = struct.unpack_from("!2H", payload)
 
             logging.debug("GET_COUNTERS: descriptor_type=%s, descriptor_index=%d"%(
@@ -1471,25 +1471,25 @@ class EntityModelEntityStateMachine(Thread):
             )
 
             response = copy.deepcopy(command)
-            response.aecpdu_header.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
-            response.aecpdu_header.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+            response.aecpdu_header.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+            response.aecpdu_header.header.status = at.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
 
-            if descriptor_type == av.JDKSAVDECC_DESCRIPTOR_ENTITY:
+            if descriptor_type == at.JDKSAVDECC_DESCRIPTOR_ENTITY:
                 counters_valid = 0
 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE:
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE:
                 counters_valid = 0
 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN:
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN:
                 counters_valid = 0
 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT:
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT:
                 counters_valid = 0
 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT:
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT:
                 counters_valid = 0
 
-            elif descriptor_type == av.JDKSAVDECC_DESCRIPTOR_PTP_PORT:
+            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_PTP_PORT:
                 counters_valid = 0
 
             response_payload = struct.pack("!2HL",
@@ -1500,8 +1500,8 @@ class EntityModelEntityStateMachine(Thread):
 
         if response is None:
             response = copy.deepcopy(command.aecpdu_header)
-            response.header.message_type = av.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
-            response.header.status = av.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
+            response.header.message_type = at.JDKSAVDECC_AECP_MESSAGE_TYPE_AEM_RESPONSE
+            response.header.status = at.JDKSAVDECC_AEM_STATUS_NOT_IMPLEMENTED
             
         return response, response_payload
 
@@ -1551,13 +1551,13 @@ class EntityModelEntityStateMachine(Thread):
                     # RECEIVED COMMAND
                     response_payload = None
                     
-                    if cmd.command_type == av.JDKSAVDECC_AEM_COMMAND_ACQUIRE_ENTITY:
+                    if cmd.command_type == at.JDKSAVDECC_AEM_COMMAND_ACQUIRE_ENTITY:
                         response, response_payload = self.acquireEntity(cmd, payload)
 #                        pdb.set_trace()
                         
-                    elif cmd.command_type == av.JDKSAVDECC_AEM_COMMAND_LOCK_ENTITY:
+                    elif cmd.command_type == at.JDKSAVDECC_AEM_COMMAND_LOCK_ENTITY:
                         response, response_payload = self.lockEntity(cmd, payload)
-                    elif cmd.command_type == av.JDKSAVDECC_AEM_COMMAND_ENTITY_AVAILABLE:
+                    elif cmd.command_type == at.JDKSAVDECC_AEM_COMMAND_ENTITY_AVAILABLE:
                         response, response_payload = self.entityAvailable(cmd, payload)
                     else:
                         response, response_payload = self.processCommand(cmd, payload)
@@ -1657,12 +1657,12 @@ if __name__ == '__main__':
     entity_info = EntityInfo(
         valid_time=args.valid,
         entity_model_id = 3,
-        entity_capabilities=av.JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_SUPPORTED +
-                            av.JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED +
-                            av.JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED,
+        entity_capabilities=at.JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_SUPPORTED +
+                            at.JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED +
+                            at.JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED,
         listener_stream_sinks=2,
-        listener_capabilities=av.JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED +
-                              av.JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK,
+        listener_capabilities=at.JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED +
+                              at.JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK,
     )
 
     with AVDECC(intf=args.intf, entity_info=entity_info, discover=args.discover) as avdecc:

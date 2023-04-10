@@ -141,10 +141,10 @@ static int _aecp_aem_check(
 }
 
 
-enum avdecc_msg_e
+enum atdecc_msg_e
 {
-  AVDECC_THREAD_JOIN = 0,
-  AVDECC_FRAME,
+  ATDECC_THREAD_JOIN = 0,
+  ATDECC_FRAME,
 };
 
 
@@ -157,22 +157,22 @@ union jdksavdecc_du
 };
 
 
-class avdecc_msg_t
+class atdecc_msg_t
 {
 public:
-  avdecc_msg_t(avdecc_msg_e _tp): tp(_tp) {}
-  avdecc_msg_e tp;
+  atdecc_msg_t(atdecc_msg_e _tp): tp(_tp) {}
+  atdecc_msg_e tp;
 
   virtual int send(struct raw_context *) { return -1; }
 };
 
 
-class avdecc_frame_t:
-  public avdecc_msg_t
+class atdecc_frame_t:
+  public atdecc_msg_t
 {
 public:
-  avdecc_frame_t(const jdksavdecc_frame *f):
-    avdecc_msg_t(AVDECC_FRAME)
+  atdecc_frame_t(const jdksavdecc_frame *f):
+    atdecc_msg_t(ATDECC_FRAME)
   {
     memcpy(&frame, f, sizeof(frame));
   }
@@ -201,15 +201,15 @@ public:
 };
 
 
-class avdecc_join_msg_t:
-  public avdecc_msg_t
+class atdecc_join_msg_t:
+  public atdecc_msg_t
 {
 public:
-  avdecc_join_msg_t(): avdecc_msg_t(AVDECC_THREAD_JOIN) {}
+  atdecc_join_msg_t(): atdecc_msg_t(ATDECC_THREAD_JOIN) {}
 };
 
 
-class avdecc_t
+class atdecc_t
 {
 protected:
 
@@ -222,7 +222,7 @@ protected:
 
     // adpdu.header.entity_id was previously set by adp_form_msg in send_msg
     if(_adp_check_listener(frame, &_du.adpdu, &adpdu.header.entity_id ) == 0) {
-      adp_cb((AVDECC_HANDLE)this, frame, &_du.adpdu);
+      adp_cb((ATDECC_HANDLE)this, frame, &_du.adpdu);
       return 1;
     }
     else if (_acmp_check_listener(frame,
@@ -231,7 +231,7 @@ protected:
                               acmpdu.sequence_id,
                               &acmpdu.listener_entity_id,
                               acmpdu.listener_unique_id ) == 0 ) {
-      acmp_cb((AVDECC_HANDLE)this, frame, &_du.acmpdu);
+      acmp_cb((ATDECC_HANDLE)this, frame, &_du.acmpdu);
       return 1;
     }
     else if(_aecp_aem_check(frame,
@@ -239,7 +239,7 @@ protected:
                          &aecpdu_aem.aecpdu_header.controller_entity_id,
                          &aecpdu_aem.aecpdu_header.header.target_entity_id,
                          aecpdu_aem.aecpdu_header.sequence_id ) == 0 ) {
-      aecp_aem_cb((AVDECC_HANDLE)this, frame, &_du.aecpdu_aem);
+      aecp_aem_cb((ATDECC_HANDLE)this, frame, &_du.aecpdu_aem);
       return 1;
     }
     
@@ -249,11 +249,11 @@ protected:
 
   static int _process(const void *self, struct raw_context *net, const struct jdksavdecc_frame *frame)
   {
-    return static_cast<const avdecc_t *>(self)->process(net, frame);
+    return static_cast<const atdecc_t *>(self)->process(net, frame);
   }
 
 
-  static void _worker(avdecc_t *self) { self->worker(); }
+  static void _worker(atdecc_t *self) { self->worker(); }
     
   void worker()
   {
@@ -263,10 +263,10 @@ protected:
         bool ending = false;
         while(!ending) {
           // try to send
-          avdecc_msg_t *msg = NULL;
+          atdecc_msg_t *msg = NULL;
           bool have = send.try_pop(msg);
           if(have) {
-            if(msg->tp == AVDECC_THREAD_JOIN)
+            if(msg->tp == ATDECC_THREAD_JOIN)
               ending = true;
             else
               msg->send(&net);
@@ -291,7 +291,7 @@ protected:
   }
   
 public:
-  avdecc_t(const char *intf, AVDECC_ADP_CALLBACK _adp_cb, AVDECC_ACMP_CALLBACK _acmp_cb, AVDECC_AECP_AEM_CALLBACK _aecp_aem_cb): 
+  atdecc_t(const char *intf, ATDECC_ADP_CALLBACK _adp_cb, ATDECC_ACMP_CALLBACK _acmp_cb, ATDECC_AECP_AEM_CALLBACK _aecp_aem_cb): 
     interface(intf),
     adp_cb(_adp_cb), 
     acmp_cb(_acmp_cb),
@@ -305,15 +305,15 @@ public:
     workerthr = new std::thread(_worker, this);
   }
   
-  ~avdecc_t()
+  ~atdecc_t()
   {
     // empty queue
-    avdecc_msg_t *msg;
+    atdecc_msg_t *msg;
     while(send.try_pop(msg)) {}
     
     if(workerthr) {
       // signal thread ending
-      send.push(new avdecc_join_msg_t());
+      send.push(new atdecc_join_msg_t());
 
       workerthr->join();
       delete workerthr;
@@ -321,11 +321,11 @@ public:
   }
   
   std::string interface;
-  AVDECC_ADP_CALLBACK adp_cb;
-  AVDECC_ACMP_CALLBACK acmp_cb;
-  AVDECC_AECP_AEM_CALLBACK aecp_aem_cb;
+  ATDECC_ADP_CALLBACK adp_cb;
+  ATDECC_ACMP_CALLBACK acmp_cb;
+  ATDECC_AECP_AEM_CALLBACK aecp_aem_cb;
   std::thread *workerthr;
-  SafeQueue<avdecc_msg_t *> send;
+  SafeQueue<atdecc_msg_t *> send;
   int arg_time_in_ms_to_wait;
   
   struct jdksavdecc_adpdu adpdu;
@@ -336,24 +336,24 @@ public:
 
 // C API
 
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_create(AVDECC_HANDLE *handle, const_string_t intf, AVDECC_ADP_CALLBACK adp_cb, AVDECC_ACMP_CALLBACK acmp_cb, AVDECC_AECP_AEM_CALLBACK aecp_aem_cb)
+ATDECC_C_API int ATDECC_C_CALL_CONVENTION ATDECC_create(ATDECC_HANDLE *handle, const_string_t intf, ATDECC_ADP_CALLBACK adp_cb, ATDECC_ACMP_CALLBACK acmp_cb, ATDECC_AECP_AEM_CALLBACK aecp_aem_cb)
 {
-  auto avdecc = new avdecc_t(intf, adp_cb, acmp_cb, aecp_aem_cb);
-  *handle = static_cast<void *>(avdecc); 
+  auto atdecc = new atdecc_t(intf, adp_cb, acmp_cb, aecp_aem_cb);
+  *handle = static_cast<void *>(atdecc); 
   return 0;
 }
 
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_destroy(AVDECC_HANDLE handle)
+ATDECC_C_API int ATDECC_C_CALL_CONVENTION ATDECC_destroy(ATDECC_HANDLE handle)
 {
-  auto avdecc = static_cast<avdecc_t *>(handle);
-  delete avdecc;
+  auto atdecc = static_cast<atdecc_t *>(handle);
+  delete atdecc;
   return 0;
 }
 
-AVDECC_C_API int AVDECC_C_CALL_CONVENTION AVDECC_send(AVDECC_HANDLE handle, const struct jdksavdecc_frame *frame)
+ATDECC_C_API int ATDECC_C_CALL_CONVENTION ATDECC_send(ATDECC_HANDLE handle, const struct jdksavdecc_frame *frame)
 {
-  auto avdecc = static_cast<avdecc_t *>(handle);
-  auto m = new avdecc_frame_t(frame);
-  avdecc->send.push(m);
+  auto atdecc = static_cast<atdecc_t *>(handle);
+  auto m = new atdecc_frame_t(frame);
+  atdecc->send.push(m);
   return 0;  
 }

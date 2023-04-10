@@ -1,4 +1,4 @@
-import avdecc_api as av
+import atdecc_api as at
 import struct
 
 from util import *
@@ -22,8 +22,8 @@ class AEMDescriptor:
 
 
 class AEMDescriptor_ENTITY(AEMDescriptor):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_ENTITY
-    descriptor_struct = av.struct_jdksavdecc_descriptor_entity
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_ENTITY
+    descriptor_struct = at.struct_jdksavdecc_descriptor_entity
     
     def __init__(self, 
         entity_id,
@@ -70,8 +70,8 @@ class AEMDescriptor_ENTITY(AEMDescriptor):
 
 
 class AEMDescriptor_CONFIGURATION(AEMDescriptor):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_CONFIGURATION
-    descriptor_struct = av.struct_jdksavdecc_descriptor_configuration
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_CONFIGURATION
+    descriptor_struct = at.struct_jdksavdecc_descriptor_configuration
     
     def __init__(self, 
         descriptor_index=0,
@@ -83,7 +83,7 @@ class AEMDescriptor_CONFIGURATION(AEMDescriptor):
             descriptor_index=descriptor_index,
             object_name=str_to_avstr(object_name),
             localized_description=0,
-            descriptor_counts_offset=av.JDKSAVDECC_DESCRIPTOR_CONFIGURATION_OFFSET_DESCRIPTOR_COUNTS,
+            descriptor_counts_offset=at.JDKSAVDECC_DESCRIPTOR_CONFIGURATION_OFFSET_DESCRIPTOR_COUNTS,
             descriptor_counts_count=len(descriptor_counts),
         )
         self.data = struct.pack(
@@ -93,8 +93,8 @@ class AEMDescriptor_CONFIGURATION(AEMDescriptor):
 
 
 class AEMDescriptor_AUDIO_UNIT(AEMDescriptor):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT
-    descriptor_struct = av.struct_jdksavdecc_descriptor_audio_unit
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT
+    descriptor_struct = at.struct_jdksavdecc_descriptor_audio_unit
     
     def __init__(self, 
         descriptor_index=0,
@@ -183,8 +183,8 @@ class AEMDescriptor_AUDIO_UNIT(AEMDescriptor):
 
 
 class AEMDescriptor_AVB_INTERFACE(AEMDescriptor):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE
-    descriptor_struct = av.struct_jdksavdecc_descriptor_avb_interface
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE
+    descriptor_struct = at.struct_jdksavdecc_descriptor_avb_interface
     
     def __init__(self, 
                  mac_address,
@@ -228,7 +228,7 @@ class AEMDescriptor_AVB_INTERFACE(AEMDescriptor):
 
 
 class _AEMDescriptor_STREAM_PORT(AEMDescriptor):
-    descriptor_struct = av.struct_jdksavdecc_descriptor_stream_port
+    descriptor_struct = at.struct_jdksavdecc_descriptor_stream_port
 
     # doesn't exist in JDKSAVDECC
     PORT_FLAG_CLOCK_SYNC_SOURCE = 0x0001
@@ -261,21 +261,21 @@ class _AEMDescriptor_STREAM_PORT(AEMDescriptor):
 
 
 class AEMDescriptor_STREAM_PORT_INPUT(_AEMDescriptor_STREAM_PORT):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT
     
     def __init__(self, *args, **kwds):
         super(AEMDescriptor_STREAM_PORT_INPUT, self).__init__(*args, **kwds)
 
 
 class AEMDescriptor_STREAM_PORT_OUTPUT(_AEMDescriptor_STREAM_PORT):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_OUTPUT
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_OUTPUT
     
     def __init__(self, *args, **kwds):
         super(AEMDescriptor_STREAM_PORT_OUTPUT, self).__init__(*args, **kwds)
 
 
 class _AEMDescriptor_STREAM(AEMDescriptor):
-    descriptor_struct = av.struct_jdksavdecc_descriptor_stream
+    descriptor_struct = at.struct_jdksavdecc_descriptor_stream
     
     STREAM_FLAG_SUPPORTS_NO_SRP = 0x8000
     
@@ -297,7 +297,7 @@ class _AEMDescriptor_STREAM(AEMDescriptor):
             clock_domain_index=clock_domain_index,
             stream_flags=stream_flags, 
             current_format=uint64_to_eui64(stream_formats[0]),
-            formats_offset=av.JDKSAVDECC_DESCRIPTOR_STREAM_OFFSET_FORMATS+3*2,
+            formats_offset=at.JDKSAVDECC_DESCRIPTOR_STREAM_OFFSET_FORMATS+3*2,
             number_of_formats=len(stream_formats), # N
             backup_talker_entity_id_0=uint64_to_eui64(0),
             backup_talker_unique_id_0=0,
@@ -321,25 +321,25 @@ class _AEMDescriptor_STREAM(AEMDescriptor):
 
 
 class AEMDescriptor_STREAM_INPUT(_AEMDescriptor_STREAM):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT
     
     def __init__(self, *args, **kwds):
         super(AEMDescriptor_STREAM_INPUT, self).__init__(*args, **kwds)
 
 
 class AEMDescriptor_STREAM_OUTPUT(_AEMDescriptor_STREAM):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT
     
     def __init__(self, *args, **kwds):
         super(AEMDescriptor_STREAM_OUTPUT, self).__init__(*args, **kwds)
 
 
 class AEMDescriptor_AUDIO_CLUSTER(AEMDescriptor):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_AUDIO_CLUSTER
-    descriptor_struct = av.struct_jdksavdecc_descriptor_audio_cluster
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_AUDIO_CLUSTER
+    descriptor_struct = at.struct_jdksavdecc_descriptor_audio_cluster
     
     def __init__(self, 
-        signal_type,  # e.g. av.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT or av.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_OUTPUT
+        signal_type,  # e.g. at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT or at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_OUTPUT
         signal_index=0,
         descriptor_index=0,
         object_name=None,
@@ -347,7 +347,7 @@ class AEMDescriptor_AUDIO_CLUSTER(AEMDescriptor):
         path_latency=0,
         block_latency=0,
         channel_count=1,
-        format=av.JDKSAVDECC_AUDIO_CLUSTER_FORMAT_MBLA,
+        format=at.JDKSAVDECC_AUDIO_CLUSTER_FORMAT_MBLA,
     ):
         self.descriptor = self.descriptor_struct(
             descriptor_type=self.descriptor_type, 
@@ -365,8 +365,8 @@ class AEMDescriptor_AUDIO_CLUSTER(AEMDescriptor):
 
 
 class AEMDescriptor_AUDIO_MAP(AEMDescriptor):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_AUDIO_MAP
-    descriptor_struct = av.struct_jdksavdecc_descriptor_audio_map
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_AUDIO_MAP
+    descriptor_struct = at.struct_jdksavdecc_descriptor_audio_map
     
     def __init__(self, 
         descriptor_index=0,
@@ -375,7 +375,7 @@ class AEMDescriptor_AUDIO_MAP(AEMDescriptor):
         self.descriptor = self.descriptor_struct(
             descriptor_type=self.descriptor_type, 
             descriptor_index=descriptor_index,
-            mappings_offset=av.JDKSAVDECC_DESCRIPTOR_AUDIO_MAP_OFFSET_MAPPINGS,
+            mappings_offset=at.JDKSAVDECC_DESCRIPTOR_AUDIO_MAP_OFFSET_MAPPINGS,
             number_of_mappings=len(mappings), # N
             # N mappings: !4H = (mapping_stream_index, mapping_stream_channel, mapping_cluster_offset, mapping_cluster_channel)
         )
@@ -383,8 +383,8 @@ class AEMDescriptor_AUDIO_MAP(AEMDescriptor):
 
 
 class AEMDescriptor_CLOCK_DOMAIN(AEMDescriptor):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN
-    descriptor_struct = av.struct_jdksavdecc_descriptor_clock_domain
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN
+    descriptor_struct = at.struct_jdksavdecc_descriptor_clock_domain
     
     def __init__(self, 
         descriptor_index=0,
@@ -398,7 +398,7 @@ class AEMDescriptor_CLOCK_DOMAIN(AEMDescriptor):
             object_name=str_to_avstr(object_name),
             localized_description=0,
             clock_source_index=clock_source_index,
-            clock_sources_offset=av.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN_OFFSET_CLOCK_SOURCES,
+            clock_sources_offset=at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN_OFFSET_CLOCK_SOURCES,
             clock_sources_count=len(clock_sources), # C
             # C*2: list of CLOCK_SOURCE descriptor indices
         )
@@ -406,8 +406,8 @@ class AEMDescriptor_CLOCK_DOMAIN(AEMDescriptor):
                 
                 
 class AEMDescriptor_CLOCK_SOURCE(AEMDescriptor):
-    descriptor_type = av.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE
-    descriptor_struct = av.struct_jdksavdecc_descriptor_clock_source
+    descriptor_type = at.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE
+    descriptor_struct = at.struct_jdksavdecc_descriptor_clock_source
     
     CLOCK_SOURCE_FLAGS_STREAM_ID = 0x0001
     CLOCK_SOURCE_FLAGS_LOCAL_ID = 0x0002
@@ -423,7 +423,7 @@ class AEMDescriptor_CLOCK_SOURCE(AEMDescriptor):
         clock_source_flags=CLOCK_SOURCE_FLAGS_LOCAL_ID,
         clock_source_type=CLOCK_SOURCE_TYPE_INTERNAL,
         clock_source_identifier=0xffffffffffffffff,
-        clock_source_location_type=av.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN,
+        clock_source_location_type=at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN,
         clock_source_location_index=0,
     ):
         self.descriptor = self.descriptor_struct(

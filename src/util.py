@@ -1,4 +1,4 @@
-import avdecc_api as av
+import atdecc_api as at
 import struct
 import netifaces
 
@@ -19,10 +19,10 @@ def get_api_dict(enum_dict):
     except KeyError:
         pass
     d = []
-    for k in av.__dict__.keys():
+    for k in at.__dict__.keys():
         if k.startswith('e_'+enum_dict) and k.endswith("__enumvalues"):
             d.append(k)
-    ed = [av.__dict__[di] for di in d]
+    ed = [at.__dict__[di] for di in d]
     api_dicts[enum_dict] = ed
     return ed 
 
@@ -41,11 +41,11 @@ def eui_to_str(eui):
     return ":".join(f"{x:02x}" for x in eui.value)
 
 
-def str_to_avstr(s :str) -> av.struct_jdksavdecc_string:
+def str_to_avstr(s :str) -> at.struct_jdksavdecc_string:
     """
-    Convert Python string s to av.struct_jdksavdecc_string. s can be None
+    Convert Python string s to at.struct_jdksavdecc_string. s can be None
     """
-    r = av.struct_jdksavdecc_string()
+    r = at.struct_jdksavdecc_string()
     r.value[:] = struct.pack("64s", (s or "").encode('ascii'))
     return r
 
@@ -88,7 +88,7 @@ def pack_struct(s, byte_order='!'): #, level=''):
 
 
 def uint64_to_eui64(other):
-    v = av.struct_jdksavdecc_eui64()
+    v = at.struct_jdksavdecc_eui64()
     v.value[:] = (
         ( other >> ( 7 * 8 ) ) & 0xff,
         ( other >> ( 6 * 8 ) ) & 0xff,
@@ -115,7 +115,7 @@ def eui64_to_uint64(v):
 
 def uint64_to_eui48(other):
     assert ( other >> ( 6 * 8 ) ) == 0
-    v = av.struct_jdksavdecc_eui48()
+    v = at.struct_jdksavdecc_eui48()
     v.value[:] = (
         ( other >> ( 5 * 8 ) ) & 0xff,
         ( other >> ( 4 * 8 ) ) & 0xff,
@@ -152,14 +152,14 @@ def mac_to_eui48(mac):
     elif type(mac) not in ('list', 'tuple'):
         raise TypeError('Mac address data type unknown')
 
-    v = av.struct_jdksavdecc_eui48()
+    v = at.struct_jdksavdecc_eui48()
     v.value[:] = mac
     return v
 
 
 def mac_to_eid(mac):
     m = mac_to_eui48(mac).value
-    v = av.struct_jdksavdecc_eui64()
+    v = at.struct_jdksavdecc_eui64()
     v.value[:] = (m[0]^0x02, m[1], m[2], 0xff, 0xf0, m[3], m[4], m[5])
     return v
 
