@@ -286,7 +286,7 @@ protected:
         raw_close( &net );
     }
     else {
-      fprintf( stderr, "Unable to open raw socket\n" );
+      std::cerr << "Unable to open raw socket" << std::endl;
     }
   }
   

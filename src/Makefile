@@ -1,4 +1,4 @@
-LIBNAME=avdecc_api
+LIBNAME=atdecc_api
 APIMOD=$(LIBNAME).py
 
 .PHONY: clean all
