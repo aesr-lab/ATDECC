@@ -5,7 +5,7 @@
 *.o
 *.opp
 /venv
-avdecc_api.*
-src/avdecc_mod.*
+atdecc_api.*
+src/atdecc_mod.*
 __pycache__
 
