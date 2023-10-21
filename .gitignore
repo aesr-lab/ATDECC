@@ -10,3 +10,4 @@ src/atdecc_mod.*
 __pycache__
 
 *~
+!.dockerignore
