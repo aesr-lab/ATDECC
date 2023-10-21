@@ -1,4 +1,8 @@
-# Initialize Python virtual env
+# 1. Update Git Submodules
+
+`$ git submodule update --init --recursive`
+
+# 2. Initialize Python virtual env
 
 Create virtual Python environment:
 `python3 -m venv venv`
@@ -12,6 +16,8 @@ Install required packages into venv:
 Eventual changes in the virtual environment must be stored
 `pip freeze > requirements.txt`
 
+# 3. Build and Extract Python C-Bindings
+`make`
 
 
 # AVB Listener
