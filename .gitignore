@@ -9,3 +9,4 @@ atdecc_api.*
 src/atdecc_mod.*
 __pycache__
 
+*~

@@ -1,0 +1,4 @@
+[submodule "jdksavdecc-c"]
+	path = jdksavdecc-c
+	url = git@gitlab.grrrr.org:aesrl/os/jdksavdecc-c.git
+	branch = aesrl
