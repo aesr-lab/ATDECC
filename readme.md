@@ -61,30 +61,30 @@ An ATDECC End Station is a device that has one or more network ports and has one
 
 #### ATDECC Entity
 An ATDECC Entity uses one or more of the following ATDECC protocols for discovering or controlling other ATDECC Entities or for being discovered or controlled by other ATDECC Entities:
-— ATDECC discovery protocol (ADP)
-— ATDECC connection management protocol (ACMP) 
-— ATDECC enumeration and control protocol (AECP)
+- ATDECC discovery protocol (ADP)
+- ATDECC connection management protocol (ACMP) 
+- ATDECC enumeration and control protocol (AECP)
 
 An ATDECC Entity shall:
-— Have a single Entity ID that is assigned by the manufacturer or via an ATDECC Proxy Server.
-— Implement at least one of the ATDECC Controller, ATDECC Talker, ATDECC Listener, or the ATDECC Responder role.
+- Have a single Entity ID that is assigned by the manufacturer or via an ATDECC Proxy Server.
+- Implement at least one of the ATDECC Controller, ATDECC Talker, ATDECC Listener, or the ATDECC Responder role.
 
 A discoverable ATDECC Entity is an ATDECC Entity that is capable of advertising itself on a local area network (LAN). An ATDECC Entity that is to be discoverable on a network shall implement:
-— 6.2.4 “Advertising Entity State Machine”
-— 6.2.5 “Advertising Interface State Machine”
-— 6.2.7 “Discovery Interface State Machine”
+- 6.2.4 “Advertising Entity State Machine”
+- 6.2.5 “Advertising Interface State Machine”
+- 6.2.7 “Discovery Interface State Machine”
 
 An ATDECC Entity that is to be discoverable on a network may implement:
-— 7.5.1 “Identification Notification”
+- 7.5.1 “Identification Notification”
 
-An ATDECC Entity which has a need to discover other ATDECC Entities on a LAN shall implement: 
-— 6.2.6 “Discovery State Machine”
+An ATDECC Entity which has a need to discover other ATDECC Entities on a LAN shall implement:
+- 6.2.6 “Discovery State Machine”
 
 An ATDECC Entity that implements 9.3.5 “ATDECC Entity Model Entity State Machine” that implements 7.4.5 “READ_DESCRIPTOR Command” shall implement:
-— 7.2.1 “ENTITY Descriptor”
+- 7.2.1 “ENTITY Descriptor”
 
 An ATDECC Entity that implements 9.3.5 “ATDECC Entity Model Entity State Machine” that implements 7.4.5 “READ_DESCRIPTOR Command” may implement:
-— 7.2.2 “CONFIGURATION Descriptor”
+- 7.2.2 “CONFIGURATION Descriptor”
 
 
 #### ATDECC Listener
@@ -93,18 +93,18 @@ An ATDECC Listener is an ATDECC Entity that can sink one or more AVTP Streams.
 An ATDECC Listener shall use ATDECC messages transported via IEEE 1722 AVTPDUs. 
 
 An ATDECC Listener shall implement the following:
-— IEEE 1722 AVTP Listener
-— 8.2.4 “ACMP Listener State Machine”
-— 9.3 “ATDECC Entity Model format”
-— 9.3.3 “ATDECC Entity Model Commands”
-— 9.3.4 “ATDECC Entity Model Responses”
-— 9.3.5 “ATDECC Entity Model Entity State Machine”, implementing:
-  — 7.4.1 “ACQUIRE_ENTITY Command”
-  — 7.4.2 “LOCK_ENTITY Command”
-  — 7.4.3 “ENTITY_AVAILABLE Command”
-  — 7.4.4 “CONTROLLER_AVAILABLE Command”
+- IEEE 1722 AVTP Listener
+- 8.2.4 “ACMP Listener State Machine”
+- 9.3 “ATDECC Entity Model format”
+- 9.3.3 “ATDECC Entity Model Commands”
+- 9.3.4 “ATDECC Entity Model Responses”
+- 9.3.5 “ATDECC Entity Model Entity State Machine”, implementing:
+  - 7.4.1 “ACQUIRE_ENTITY Command”
+  - 7.4.2 “LOCK_ENTITY Command”
+  - 7.4.3 “ENTITY_AVAILABLE Command”
+  - 7.4.4 “CONTROLLER_AVAILABLE Command”
 
 An ATDECC Listener may implement the following:
-— 9.3.5 “ATDECC Entity Model Entity State Machine”, implementing zero or more of the following:
+- 9.3.5 “ATDECC Entity Model Entity State Machine”, implementing zero or more of the following:
  xxxx
  
