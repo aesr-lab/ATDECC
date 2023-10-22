@@ -1,4 +1,4 @@
-.*
+/ .*
 *.log
 *.so
 *.dylib
@@ -9,3 +9,7 @@ atdecc_api.*
 src/atdecc_mod.*
 __pycache__
 
+*~
+!.dockerignore
+!.gitlab-ci.yml
+!.gitmodules.gitlab

@@ -1,4 +1,8 @@
-# Initialize Python virtual env
+# 1. Update Git Submodules
+
+`$ git submodule update --init --recursive`
+
+# 2. Initialize Python virtual env
 
 Create virtual Python environment:
 `python3 -m venv venv`
@@ -12,30 +16,50 @@ Install required packages into venv:
 Eventual changes in the virtual environment must be stored
 `pip freeze > requirements.txt`
 
+# 3. Build and Extract Python C-Bindings
+`make`
 
-# AVB Listener
+# Docker
 
-## ATDECC End Station
+As a PoC the Dockerfile can be built to an image, primarily to ensure compilation succeeds on debian when developing locally (note that this presumes you have the git submodules checked out locally):
+
+```
+$ docker buildx build . -t atdecc-py --platform=linux/amd64
+```
+
+Then run it with
+
+```
+$ docker run --rm -ti atdecc-py
+```
+
+This setup can also serve as a blueprint for the setup of the final production image.
+
+
+# Requirements
+
+## AVB Listener
+
+### ATDECC End Station
 
 An ATDECC End Station is a device that has one or more network ports and has one or more ATDECC Entities.
 
-### An ATDECC End Station shall implement:
-- at least one ATDECC Entity
-- at least one network interface
-- IEEE 1722 control AVTP data unit (AVTPDU) packetization and depacketization
+#### An ATDECC End Station shall implement:
+— at least one ATDECC Entity
+— at least one network interface
+— IEEE 1722 control AVTP data unit (AVTPDU) packetization and depacketization
 
-### An ATDECC End Station may implement:
-- multiple ATDECC Entities
-- one or more network interfaces that implement an appropriate AVB profile as defined in IEEE Std 802.1BA­2011 and corrected by IEEE Std 802.1BATM­2011/Cor 1­2016.
-- IEEE 802.1AS time synchronization
-- IEEE 1722 stream AVTPDU packetization
-- IEEE 1722 stream AVTPDU depacketization
-- IEEE 1722 multicast address allocation protocol (MAAP)
-- IEEE 802.1Q Clause 34 FQTSS Traffic Shaping
-- IEEE 802.1Q Clause 35 Stream Reservation Protocol
+#### An ATDECC End Station may implement:
+— multiple ATDECC Entities
+— one or more network interfaces that implement an appropriate AVB profile as defined in IEEE Std 802.1BA­2011 and corrected by IEEE Std 802.1BATM­2011/Cor 1­2016.
+— IEEE 802.1AS time synchronization
+— IEEE 1722 stream AVTPDU packetization
+— IEEE 1722 stream AVTPDU depacketization
+— IEEE 1722 multicast address allocation protocol (MAAP)
+— IEEE 802.1Q Clause 34 FQTSS Traffic Shaping
+— IEEE 802.1Q Clause 35 Stream Reservation Protocol
 
-### ATDECC Entity
-
+#### ATDECC Entity
 An ATDECC Entity uses one or more of the following ATDECC protocols for discovering or controlling other ATDECC Entities or for being discovered or controlled by other ATDECC Entities:
 - ATDECC discovery protocol (ADP)
 - ATDECC connection management protocol (ACMP) 
@@ -63,8 +87,7 @@ An ATDECC Entity that implements 9.3.5 “ATDECC Entity Model Entity State Machi
 - 7.2.2 “CONFIGURATION Descriptor”
 
 
-### ATDECC Listener
-
+#### ATDECC Listener
 An ATDECC Listener is an ATDECC Entity that can sink one or more AVTP Streams.
 
 An ATDECC Listener shall use ATDECC messages transported via IEEE 1722 AVTPDUs. 
