@@ -1,0 +1,29 @@
+image: python:3.9
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+before_script:
+  - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev -yy
+  - python -V
+  - cp .gitmodules.gitlab .gitmodules
+  - git submodule update --init --recursive
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+  - pip install -r requirements.txt
+  - pip freeze > requirements.txt
+
+build:
+  stage: build
+  tags:
+    - shell
+  script:
+    - make
+  only:
+    - merge_requests
