@@ -1,4 +1,4 @@
-.*
+/ .*
 *.log
 *.so
 *.dylib
@@ -12,3 +12,4 @@ __pycache__
 *~
 !.dockerignore
 !.gitlab-ci.yml
+!.gitmodules.gitlab
