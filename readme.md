@@ -35,6 +35,30 @@ $ docker run --rm -ti atdecc-py
 
 This setup can also serve as a blueprint for the setup of the final production image.
 
+# BeagleBone/Bela
+
+The following steps are necesssary to compile the daemon on BeagleBone Black/Bela:
+
+```
+$ sudo apt-get install cmake build-essential python3-venv clang libclang-dev libpcap-dev
+$ python3 -m venv venv
+$ source venv/bin/activate
+$ pip install -r requirements.txt
+$ pip freeze > requirements.txt
+$ make clean
+$ make
+```
+
+Running the daemon has to be done as root:
+```
+$ sudo su
+# export LD_LIBRARY_PATH=$PWD/src
+# source venv/bin/activate
+# ./src/atdecc.py -d
+```
+
+Afterwards you should be able to discover the SBC in Hive.
+
 
 # Requirements
 
