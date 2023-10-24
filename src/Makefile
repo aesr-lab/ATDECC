@@ -4,6 +4,7 @@ APIMOD=$(LIBNAME).py
 .PHONY: clean all
 
 SYS := $(shell gcc -dumpmachine)
+CLANG_RESOURCE_DIR := $(shell clang -print-resource-dir)
 DEBUG ?= 0
 
 C_HDRS=$(wildcard ../jdksavdecc-c/include/*.h) 
@@ -52,7 +53,7 @@ $(DYLIB): $(OBJS)
 $(APIMOD): interface.h $(DYLIB) Makefile ./patch_api.sh ./cvt_header.py $(C_HDRS)
 	-mkdir ./include
 	for f in $(C_HDRS); do ./cvt_header.py "$$f" "./include/$${f##*/}"; done
-	clang2py -l$(DYLIB) -i --clang-args="-I./include -I../avdecc-cmd/include" $< -o $@
+	clang2py -l$(DYLIB) -i --clang-args="-I./include -I../avdecc-cmd/include -I$(CLANG_RESOURCE_DIR)/include" $< -o $@
 	test -s $@
 	./patch_api.sh "$@"
 
