@@ -69,19 +69,19 @@ Afterwards you should be able to discover the SBC in Hive.
 An ATDECC End Station is a device that has one or more network ports and has one or more ATDECC Entities.
 
 #### An ATDECC End Station shall implement:
-— at least one ATDECC Entity
-— at least one network interface
-— IEEE 1722 control AVTP data unit (AVTPDU) packetization and depacketization
+- at least one ATDECC Entity
+- at least one network interface
+- IEEE 1722 control AVTP data unit (AVTPDU) packetization and depacketization
 
 #### An ATDECC End Station may implement:
-— multiple ATDECC Entities
-— one or more network interfaces that implement an appropriate AVB profile as defined in IEEE Std 802.1BA­2011 and corrected by IEEE Std 802.1BATM­2011/Cor 1­2016.
-— IEEE 802.1AS time synchronization
-— IEEE 1722 stream AVTPDU packetization
-— IEEE 1722 stream AVTPDU depacketization
-— IEEE 1722 multicast address allocation protocol (MAAP)
-— IEEE 802.1Q Clause 34 FQTSS Traffic Shaping
-— IEEE 802.1Q Clause 35 Stream Reservation Protocol
+- multiple ATDECC Entities
+- one or more network interfaces that implement an appropriate AVB profile as defined in IEEE Std 802.1BA­2011 and corrected by IEEE Std 802.1BATM­2011/Cor 1­2016.
+- IEEE 802.1AS time synchronization
+- IEEE 1722 stream AVTPDU packetization
+- IEEE 1722 stream AVTPDU depacketization
+- IEEE 1722 multicast address allocation protocol (MAAP)
+- IEEE 802.1Q Clause 34 FQTSS Traffic Shaping
+- IEEE 802.1Q Clause 35 Stream Reservation Protocol
 
 #### ATDECC Entity
 An ATDECC Entity uses one or more of the following ATDECC protocols for discovering or controlling other ATDECC Entities or for being discovered or controlled by other ATDECC Entities:
