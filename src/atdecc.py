@@ -17,71 +17,7 @@ import pdb
 from pdu import *
 from pdu_print import *
 from aem import *
-
-
-class EntityInfo:
-    """
-    IEEE 1722.1-2021, section 6.2.7
-    
-    All ids are stored in uint64 format (not EUIxx) 
-    """
-
-    def __init__(self, 
-                 valid_time=62,
-                 entity_id=0,
-                 entity_model_id=0,
-                 entity_capabilities=0,
-                 talker_stream_sources=0,
-                 talker_capabilities=0,
-                 listener_stream_sinks=0,
-                 listener_capabilities=0,
-                 controller_capabilities=0,
-                 gptp_grandmaster_id=0,
-                 gptp_domain_number=0,
-                 current_configuration_index=0,
-                 identify_control_index=0,
-                 interface_index=0,
-                 association_id=0,
-                 ):
-        self.valid_time = valid_time # in seconds
-        self.entity_id = entity_id
-        self.entity_model_id = entity_model_id # Section 6.2.2.8.
-        self.entity_capabilities = entity_capabilities
-        self.talker_stream_sources = talker_stream_sources
-        self.talker_capabilities = talker_capabilities
-        self.listener_stream_sinks = listener_stream_sinks
-        self.listener_capabilities = listener_capabilities
-        self.controller_capabilities = controller_capabilities
-        self.available_index = 0
-        self.gptp_grandmaster_id = gptp_grandmaster_id
-        self.gptp_domain_number = gptp_domain_number
-        self.current_configuration_index = current_configuration_index
-        self.identify_control_index = identify_control_index
-        self.interface_index = interface_index
-        self.association_id = association_id
-        
-    def get_adpdu(self):
-        return at.struct_jdksavdecc_adpdu(
-            header = at.struct_jdksavdecc_adpdu_common_control_header(
-                valid_time=max(0,min(int(self.valid_time/2.+0.5),31)),
-                entity_id=uint64_to_eui64(self.entity_id),
-            ),
-            entity_model_id = uint64_to_eui64(self.entity_model_id),
-            entity_capabilities=self.entity_capabilities,
-            talker_stream_sources=self.talker_stream_sources,
-            talker_capabilities=self.talker_capabilities,
-            listener_stream_sinks=self.listener_stream_sinks,
-            listener_capabilities=self.listener_capabilities,
-            controller_capabilities=self.controller_capabilities,
-            available_index=self.available_index,
-            gptp_grandmaster_id=uint64_to_eui64(self.gptp_grandmaster_id),
-            gptp_domain_number=self.gptp_domain_number,
-            current_configuration_index=self.current_configuration_index,
-            identify_control_index=self.identify_control_index,
-            interface_index=self.interface_index,
-            association_id=uint64_to_eui64(self.association_id),
-        )
-
+from adp import *
 
 class jdksInterface:
     handles = {}
@@ -1656,7 +1592,7 @@ if __name__ == '__main__':
         
     entity_info = EntityInfo(
         valid_time=args.valid,
-        entity_model_id = 3,
+        entity_model_id = 3, # section 6.2.2.8 "If a firmware revision changes the structure of an ATDECC Entity data model then it shall use a new unique entity_model_id."
         entity_capabilities=at.JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_SUPPORTED +
                             at.JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED +
                             at.JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED,

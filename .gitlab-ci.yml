@@ -8,6 +8,10 @@ cache:
     - .cache/pip
     - venv/
 
+stages:
+  - build
+  - test
+
 before_script:
   - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev -yy
   - python -V
@@ -25,5 +29,21 @@ build:
     - docker
   script:
     - make
+  artifacts:
+    paths:
+      - src/
+  only:
+    - merge_requests
+
+tests:
+  stage: test
+  dependencies:
+    - build
+  variables:
+    LD_LIBRARY_PATH: $CI_PROJECT_DIR/src
+  tags:
+    - docker
+  script:
+    - pytest
   only:
     - merge_requests
