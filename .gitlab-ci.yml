@@ -29,11 +29,18 @@ build:
     - docker
   script:
     - make
+  artifacts:
+    paths:
+      - src/
   only:
     - merge_requests
 
 tests:
   stage: test
+  dependencies:
+    - build
+  variables:
+    LD_LIBRARY_PATH: $CI_PROJECT_DIR/src
   tags:
     - docker
   script:
