@@ -57,6 +57,11 @@ $ sudo su
 # ./src/atdecc.py -d
 ```
 
+**Note:** On Debix you have to specify the interface:
+```
+# ./src/atdecc.py -d -i ens33
+```
+
 Afterwards you should be able to discover the SBC in Hive.
 
 
