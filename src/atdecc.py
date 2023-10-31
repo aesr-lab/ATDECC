@@ -120,89 +120,6 @@ class Interface(jdksInterface):
         logging.debug(f"MAC: {self.mac}")
 
 
-class GlobalStateMachine:
-    """
-    IEEE 1722.1-2021, section 6.2.3
-    """
-    @property
-    def currentTime(self):
-        """
-        Get seconds in epoch
-        """
-        return time.time()
-
-
-class AdvertisingEntityStateMachine(
-    GlobalStateMachine, 
-    Thread
-    ):
-    """
-    IEEE 1722.1-2021, section 6.2.4
-    
-    for each ATDECC Entity being published on the End Station
-    """
-
-    def __init__(self, entity_info, interface_state_machines):
-        super(AdvertisingEntityStateMachine, self).__init__()
-        self.entity_info = entity_info
-        self.reannouncementTimerTimeout = 0
-        self.needsAdvertise = False
-        self.doTerminate = False
-        self.event = Event()
-        self.random = random.Random()
-        self.random.seed(self.entity_info.entity_id+int(self.currentTime*10**6))
-        self.interface_state_machines = interface_state_machines
-
-    def performAdvertise(self):
-        self.needsAdvertise = True
-        self.event.set()
-
-    def performTerminate(self):
-        self.doTerminate = True
-        logging.debug("doTerminate")
-        self.event.set()
-
-    def sendAvailable(self):
-        """
-        Sets all of the doAdvertise booleans on all of the Advertising Interface 
-        state machines to signal them to transmit an advertise message.
-        """
-        for ism in self.interface_state_machines:
-            ism.performAdvertise()
-
-    def randomDeviceDelay(self):
-        """
-        returns the number of milliseconds that the device should wait between 
-        the firing of the re­announce timer or being requested to send an 
-        ENTITY_ADVERTISE message and sending the message. 
-        The randomDeviceDelay function generates a random delay with a 
-        uniform distribution across the range of zero (0) to 1/5 of the 
-        valid time of the ATDECC Entity in milliseconds.
-        """
-        return self.random.uniform(0, self.entity_info.valid_time/5.)
-
-    def run(self):
-        logging.debug("AdvertisingEntityStateMachine: Starting thread")
-
-        self.entity_info.available_index = 0
-
-        while True:
-            self.event.wait(self.randomDeviceDelay())
-            if self.doTerminate:
-                break
-            self.event.clear()
-
-            self.sendAvailable()
-
-            self.needsAdvertise = False
-
-            self.event.wait(max(1, self.entity_info.valid_time/2))
-            if self.doTerminate:
-                break
-            self.event.clear()
-
-        logging.debug("AdvertisingEntityStateMachine: Ending thread")
-
 
 if 0:
     class AdvertisingInterfaceStateMachine(Thread):
@@ -259,89 +176,6 @@ if 0:
             self.txEntityDeparting()
 
             logging.debug("AdvertisingInterfaceStateMachine: Ending thread")
-
-
-class DiscoveryStateMachine(
-    GlobalStateMachine, 
-    Thread
-    ):
-    """
-    IEEE 1722.1-2021, section 6.2.6
-    
-    for each ATDECC Entity implementing an ATDECC Controller or 
-    requiring Entity discovery
-    """
-
-    def __init__(self, interfaces, discoverID=0):
-        self.discoverID = discoverID # 0 discovers everything
-        
-        self.rcvdEntityInfo = None
-        self.rcvdAvailable = False
-        self.rcvdDeparting = False
-
-        self.doDiscover = False
-        self.doTerminate = False
-        self.event = Event()
-
-        self.entities = {}
-        self.interfaces = []
-
-    def performTerminate(self):
-        self.doTerminate = True
-        self.event.set()
-        
-    def performDiscover(self):
-        self.doDiscover = True
-        self.event.set()
-        
-    def txDiscover(self, entityID):
-        """
-        The txDiscover function transmits an ENTITY_DISCOVER message.
-        If the ATDECC Entity has more than one enabled network port, 
-        then the same ADPDU is sent out each port.
-        """
-        raise NotImplementedError()
-        
-    def haveEntity(self, entityID):
-        return entityID in self.entities
-
-    def updateEntity(self, entityInfo, ct=GlobalStateMachine.currentTime):
-        if entityInfo.entityID:
-            self.entities[entityInfo.entityID] = (entityInfo, ct+entityInfo.valid_time)
-        else:
-            logging.warning("entityID == 0")
-
-    def removeEntity(self, entityID):
-        try:
-            del self.entities[entityID]
-        except KeyError:
-            logging.warning("entityID not found in database")
-            
-    def run(self):
-        while True:
-            self.rcvdAvailable = False
-            self.rcvdDeparting = False
-            self.doDiscover = False
-
-            self.event.wait(1)
-            if self.doterminate:
-                break
-            self.event.clear()
-
-            if self.doDiscover:
-                txDiscover(self.discoverID)
-
-            ct = self.currentTime
-
-            if self.rcvdAvailable:
-                thisEntity = self.updateEntity(self.rcvdEntityInfo, ct)
-
-            if self.rcvdDeparting:
-                self.removeEntity(self.rcvdEntityInfo.entity_id)
-
-            for e in self.entities:
-                if ct >= e.timeout:
-                    self.removeEntity(e.entity_id)
 
 
 class DiscoveryInterfaceStateMachine(
@@ -1599,6 +1433,8 @@ if __name__ == '__main__':
         listener_stream_sinks=2,
         listener_capabilities=at.JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED +
                               at.JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK,
+        talker_stream_sources=2,
+        talker_capabilities=at.JDKSAVDECC_ADP_TALKER_CAPABILITY_IMPLEMENTED + at.JDKSAVDECC_ADP_TALKER_CAPABILITY_AUDIO_SOURCE
     )
 
     with AVDECC(intf=args.intf, entity_info=entity_info, discover=args.discover) as avdecc:

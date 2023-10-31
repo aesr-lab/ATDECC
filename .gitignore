@@ -13,3 +13,4 @@ __pycache__
 !.dockerignore
 !.gitlab-ci.yml
 !.gitmodules.gitlab
+*#*#
