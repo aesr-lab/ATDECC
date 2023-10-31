@@ -1,6 +1,12 @@
+import time
+import random
+import logging
+from threading import Thread, Event
+
 from pdu import *
 from pdu_print import *
 from aem import *
+from util import *
 
 class EntityInfo:
     """
@@ -66,3 +72,196 @@ class EntityInfo:
             interface_index=self.interface_index,
             association_id=uint64_to_eui64(self.association_id),
         )
+
+
+class GlobalStateMachine:
+    """
+    IEEE 1722.1-2021, section 6.2.3
+    """
+    @property
+    def currentTime(self):
+        """
+        Get seconds in epoch
+        """
+        return time.time()
+
+
+class AdvertisingEntityStateMachine(
+    GlobalStateMachine,
+    Thread
+    ):
+    """
+    IEEE 1722.1-2021, section 6.2.4
+
+    for each ATDECC Entity being published on the End Station
+    """
+
+    def __init__(self, entity_info, interface_state_machines):
+        super(AdvertisingEntityStateMachine, self).__init__()
+        self.entity_info = entity_info
+        self.reannouncementTimerTimeout = 0
+        self.needsAdvertise = False
+        self.doTerminate = False
+        self.event = Event()
+        self.random = random.Random()
+        self.random.seed(self.entity_info.entity_id+int(self.currentTime*10**6))
+        self.interface_state_machines = interface_state_machines
+
+    def performAdvertise(self):
+        self.needsAdvertise = True
+        self.event.set()
+
+    def performTerminate(self):
+        self.doTerminate = True
+        logging.debug("doTerminate")
+        self.event.set()
+
+    def sendAvailable(self):
+        """
+        Sets all of the doAdvertise booleans on all of the Advertising Interface 
+        state machines to signal them to transmit an advertise message.
+        """
+        for ism in self.interface_state_machines:
+            ism.performAdvertise()
+
+    def randomDeviceDelay(self):
+        """
+        returns the number of milliseconds that the device should wait between 
+        the firing of the re­announce timer or being requested to send an 
+        ENTITY_ADVERTISE message and sending the message. 
+        The randomDeviceDelay function generates a random delay with a 
+        uniform distribution across the range of zero (0) to 1/5 of the 
+        valid time of the ATDECC Entity in milliseconds.
+        """
+        return self.random.uniform(0, self.entity_info.valid_time/5.) * 1000.
+
+    def run(self):
+        logging.debug("AdvertisingEntityStateMachine: Starting thread")
+
+        # INITIALIZE
+        self.entity_info.available_index = 0
+
+        while True:
+            # DELAY
+            self.event.wait(self.randomDeviceDelay() / 1000.)
+            if self.doTerminate:
+                break
+            self.event.clear()
+
+            # ADVERTISE
+            self.sendAvailable()
+
+            self.needsAdvertise = False
+
+            # WAITING
+            if not self.needsAdvertise:
+              self.event.wait(max(1, self.entity_info.valid_time/2))
+            if self.doTerminate:
+                break
+            self.event.clear()
+
+        logging.debug("AdvertisingEntityStateMachine: Ending thread")
+
+
+class DiscoveryStateMachine(
+    GlobalStateMachine, 
+    Thread
+    ):
+    """
+    IEEE 1722.1-2021, section 6.2.6
+    
+    for each ATDECC Entity implementing an ATDECC Controller or 
+    requiring Entity discovery
+    """
+
+    def __init__(self, interfaces, discoverID=0):
+        super(DiscoveryStateMachine, self).__init__()
+
+        self.discoverID = discoverID # 0 discovers everything
+        self.rcvdEntityInfo = None
+        self.rcvdAvailable = False
+        self.rcvdDeparting = False
+
+        self.doDiscover = False
+        self.doTerminate = False
+        self.event = Event()
+
+        self.entities = {}
+        self.interfaces = []
+
+    def performTerminate(self):
+        self.doTerminate = True
+        self.event.set()
+        
+    def performDiscover(self):
+        self.doDiscover = True
+        self.event.set()
+        
+    def txDiscover(self, entityID):
+        """
+        The txDiscover function transmits an ENTITY_DISCOVER message.
+        If the ATDECC Entity has more than one enabled network port, 
+        then the same ADPDU is sent out each port.
+        """
+        raise NotImplementedError()
+        
+    def haveEntity(self, entityID):
+        return entityID in self.entities
+
+    def addEntity(self, entityInfo, ct=GlobalStateMachine().currentTime):
+        """
+        The addEntity function adds a new Entity record to the entities variable with the contents of the entityInfo structure parameter.
+
+        """
+        self.updateEntity(entityInfo, ct)
+
+    def updateEntity(self, entityInfo, ct=GlobalStateMachine().currentTime):
+        if entityInfo.entity_id:
+            self.entities[entityInfo.entity_id] = (entityInfo, ct+entityInfo.valid_time)
+        else:
+            logging.warning("entityID == 0")
+
+    def removeEntity(self, eui64):
+        """
+        The remove Entity function removes an ATDECC Entity record from the entities variable for an ATDECC Entity whose entity_id matches the eui64 parameter.
+        """
+        try:
+            del self.entities[eui64_to_uint64(eui64)]
+        except KeyError:
+            logging.warning("entityID not found in database")
+            
+    def run(self):
+        while True:
+            # WAITING
+            self.rcvdAvailable = False
+            self.rcvdDeparting = False
+            self.doDiscover = False
+
+            self.event.wait(1)
+            if self.doTerminate:
+                break
+            self.event.clear()
+
+            # DISCOVER
+            if self.doDiscover:
+                self.txDiscover(self.discoverID)
+
+            ct = self.currentTime
+
+            # AVAILABLE
+            if self.rcvdAvailable:
+                if self.haveEntity(self.rcvdEntityInfo.entity_id):
+                    self.updateEntity(self.rcvdEntityInfo, ct)
+                else:
+                    self.addEntity(self.rcvdEntityInfo, ct)
+
+            # DEPARTING
+            if self.rcvdDeparting:
+                self.removeEntity(uint64_to_eui64(self.rcvdEntityInfo.entity_id))
+
+            # TIMEOUT
+            for key in self.entities:
+                entity_info, timeout = self.entities[key]
+                if ct >= timeout:
+                    self.removeEntity(uint64_to_eui64(entity_info.entity_id))
+
