@@ -1,7 +1,9 @@
 import time
 import random
 import logging
+import copy
 from threading import Thread, Event
+from queue import Queue, Empty
 
 from pdu import *
 from pdu_print import *
@@ -265,3 +267,132 @@ class DiscoveryStateMachine(
                 if ct >= timeout:
                     self.removeEntity(uint64_to_eui64(entity_info.entity_id))
 
+
+# combined:
+# AdvertisingInterfaceStateMachine
+# DiscoveryInterfaceStateMachine
+class InterfaceStateMachine(Thread):
+    """
+    IEEE 1722.1-2021, section 6.2.5
+    for each AVB interface of the ATDECC Entity being published in the End Station
+
+    IEEE 1722.1-2021, section 6.2.7    
+    """
+    
+    def __init__(self, entity_info, interfaces):
+        super(InterfaceStateMachine, self).__init__()
+        
+        self.event = Event()
+        self.doTerminate = False
+
+        # AdvertisingInterfaceStateMachine
+        self.doAdvertise = False
+        self.interfaces = interfaces
+        self.entity_info = entity_info
+        
+        # DiscoveryInterfaceStateMachine
+        self.rcvdDiscover = Queue()
+        self.currentGrandmasterID = None
+        self.advertisedGrandmasterID = None
+        self.linkIsUp = True
+        self.lastLinkIsUp = False
+        self.currentConfigurationIndex = 0
+        self.advertisedConfigurationIndex = None
+        
+        
+    def performTerminate(self):
+        self.doTerminate = True
+        logging.debug("doTerminate")
+        self.event.set()
+        
+    def performAdvertise(self):
+        self.doAdvertise = True
+        self.event.set()
+        
+    def txEntityAvailable(self):
+        """
+        The txEntityAvailable function transmits an ENTITY_AVAILABLE message
+        """
+        for intf in self.interfaces:
+            intf.send_adp(at.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE, self.entity_info)
+
+        self.entity_info.available_index += 1        
+
+    def txEntityDeparting(self):
+        """
+        The txEntityAvailable function transmits an ENTITY_DEPARTING message
+        """
+        for intf in self.interfaces:
+            intf.send_adp(at.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING, self.entity_info)
+
+        self.entity_info.available_index = 0
+
+
+    def adp_cb(self, adpdu):
+        """
+        The entityID variable is an unsigned 64bit value containing the entity_id from the received ENTITY_DISCOVER ADPDU. This is set at the same time and from the same ADPDU as rcvdDiscover. 
+        """
+#        logging.info("ADP: %s", adpdu_str(adpdu))
+
+        if adpdu.header.message_type == at.JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER:
+            self.rcvdDiscover.put(copy.deepcopy(adpdu.header.entity_id))
+
+    def run(self):
+        logging.debug("InterfaceStateMachine: Starting thread")
+        
+        for intf in self.interfaces:
+            intf.register_adp_cb(self.adp_cb)
+
+        while True:
+            if self.rcvdDiscover.empty():
+                self.event.wait(1)
+                # signalled
+                self.event.clear()
+                
+            if self.doTerminate:
+                break
+            
+            # AdvertisingInterfaceStateMachine
+            if self.doAdvertise:
+                self.txEntityAvailable()
+                self.doAdvertise = False
+                
+            # DiscoveryInterfaceStateMachine
+            try:
+                disc = eui64_to_uint64(self.rcvdDiscover.get_nowait())
+            except Empty:
+                disc = None
+                
+            if disc is not None:
+                # RECEIVED DISCOVER
+                if disc == 0 or disc == self.entity_info.entity_id:
+                    # DISCOVER
+                    logging.debug("Respond to Discover")
+                    self.performAdvertise()
+            
+            if self.currentGrandmasterID != self.advertisedGrandmasterID:
+                # UPDATE GM
+                logging.debug("Update GrandmasterID")
+                self.advertisedGrandmasterID = self.currentGrandmasterID
+                self.performAdvertise()
+                
+            if self.lastLinkIsUp != self.linkIsUp:
+                # LINK STATE CHANGE
+                logging.debug("Update Link state")
+                self.lastLinkIsUp = self.linkIsUp 
+                if self.linkIsUp:
+                    self.performAdvertise()
+                    
+            if self.currentConfigurationIndex != self.advertisedConfigurationIndex:
+                # UPDATE CONFIGURATION
+                logging.debug("Update Configuration")
+                self.advertisedConfigurationIndex = self.currentConfigurationIndex 
+                self.performAdvertise()
+
+        # thread ending
+        self.txEntityDeparting()
+
+        for intf in self.interfaces:
+            intf.unregister_adp_cb(self.adp_cb)
+
+        logging.debug("InterfaceStateMachine: Ending thread")

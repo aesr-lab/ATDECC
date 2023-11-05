@@ -2,8 +2,7 @@ import pytest
 from unittest.mock import patch, Mock
 import time
 
-from adp import EntityInfo
-from atdecc import InterfaceStateMachine
+from adp import EntityInfo, InterfaceStateMachine
 from util import *
 
 class TestAdvertisingInterfaceStateMachine:
