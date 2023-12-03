@@ -49,6 +49,11 @@ def str_to_avstr(s :str) -> at.struct_jdksavdecc_string:
     r.value[:] = struct.pack("64s", (s or "").encode('ascii'))
     return r
 
+def avstr_to_str(avstr: at.struct_jdksavdecc_string) -> str:
+    """
+    Convert at.struct_jdksavdecc_string avstr to Python str.
+    """
+    return bytes(avstr.value).decode('ascii').rstrip('\x00').strip('"')
 
 def pack_struct(s, byte_order='!'): #, level=''):
     """

@@ -1,0 +1,128 @@
+AEMDescriptor_ENTITY:
+  entity_name: aesrl 16-channel
+  vendor_name_string: 0
+  model_name_string: 0
+  firmware_version: 0.0
+  group_name: aesrl
+  serial_number: 0.0
+  configurations_count: 1
+  current_configuration: 0
+
+AEMDescriptor_CONFIGURATION:
+  object_name: 16 in
+  descriptor_counts:
+    # from Table 7-1, p65
+    0x0002: 1 # at.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT
+    0x0005: 1 # at.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT
+    #0x0006: 1 # at.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT
+    #0x0007: 1 # at.JDKSAVDECC_DESCRIPTOR_JACK_INPUT
+    #0x0008: 1 # at.JDKSAVDECC_DESCRIPTOR_JACK_OUTPUT
+    0x0009: 1 # at.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE
+    0x000A: 1 # at.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE
+    0x0024: 1 # at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN
+
+AEMDescriptor_AUDIO_UNIT:
+  object_name: AESRL Audio Unit
+  sampling_rates:
+    - 48000
+  # localized_description: 0
+  # clock_domain_index: 0
+  number_of_stream_input_ports: 2
+  # base_stream_input_port: 0
+  number_of_stream_output_ports: 0
+  # base_stream_output_port: 0
+  number_of_external_input_ports: 0
+  # base_external_input_port: 0
+  number_of_external_output_ports: 16
+  # base_external_output_port: 0
+  number_of_internal_input_ports: 0
+  # base_internal_input_port: 0
+  number_of_internal_output_ports: 0
+  # base_internal_output_port: 0
+  number_of_controls: 0
+  # base_control: 0
+  number_of_signal_selectors: 0
+  # base_signal_selector: 0
+  number_of_mixers: 0
+  # base_mixer: 0
+  number_of_matrices: 0
+  # base_matrix: 0
+  number_of_splitters: 0
+  # base_splitter: 0
+  number_of_combiners: 0
+  # base_combiner: 0
+  number_of_demultiplexers: 0
+  # base_demultiplexer: 0
+  number_of_multiplexers: 0
+  # base_multiplexer: 0
+  number_of_transcoders: 0
+  # base_transcoder: 0
+  number_of_control_blocks: 0
+  # base_control_block: 0
+
+AEMDescriptor_STREAM_INPUT:
+  object_name: Audio Input Stream
+  # clock_domain_index: 0
+  stream_formats:
+    - 0x0205022002006000
+  stream_flags: # see table 7.9
+    - 0x0001 # at.JDKSAVDECC_DESCRIPTOR_STREAM_FLAG_CLOCK_SYNC_SOURCE
+    - 0x0002 # at.JDKSAVDECC_DESCRIPTOR_STREAM_FLAG_CLASS_A
+    - 0x8000 # SUPPORTS_NO_SRP
+  # avb_interface_index: 0
+  buffer_length: 666
+  # timing: 0 # The TIMING descriptor index which represents the source of gPTP time for the stream.
+
+AEMDescriptor_STREAM_OUTPUT:
+  object_name: Audio Output Stream
+  # clock_domain_index: 0
+  stream_formats:
+    - 0x0205022002006000
+  stream_flags: # see table 7.9
+    - 0x0002 # at.JDKSAVDECC_DESCRIPTOR_STREAM_FLAG_CLASS_A
+    - 0x8000 # SUPPORTS_NO_SRP
+  # avb_interface_index: 0
+  buffer_length: 666
+  # timing: 0 # The TIMING descriptor index which represents the source of gPTP time for the stream.
+
+AEMDescriptor_JACK_INPUT:
+  object_name: Audio In Jack
+  # jack_type: 0x0008 # at.JDKSAVDECC_JACK_TYPE_BALANCED_ANALOG
+
+AEMDescriptor_JACK_OUTPUT:
+  object_name: Audio Out Jack
+  jack_type: 0x0009 # at.JDKSAVDECC_JACK_TYPE_DIGITAL
+
+AEMDescriptor_AVB_INTERFACE:
+  mac_address: 0xb0d5ccfc4d94 # TODO this should be retrieved from the ethernet adapter
+  object_name: AESRL AVB Interface
+  interface_flags:
+    - 0x0002 # at.JDKSAVDECC_AVB_INTERFACE_FLAG_GPTP_SUPPORTED
+
+AEMDescriptor_CLOCK_SOURCE:
+  clock_source_type: 0x0002 # CLOCK_SOURCE_TYPE_INPUT_STREAM
+  clock_source_flags:
+    - 0x0001 # CLOCK_SOURCE_FLAGS_STREAM_ID
+
+AEMDescriptor_STREAM_PORT_INPUT:
+  number_of_clusters: 1
+  number_of_maps: 1
+  port_flags:
+    - 0x0001 # CLOCK_SYNC_SOURCE
+    # - 0x0002 # ASYNC_SAMPLE_RATE_CONV - Indicates that the Port has an asynchronous sample rate con­vertor to convert sample rates between another Clock Domain and the Unit’s.
+    # - 0x0004 # SYNC_SAMPLE_RATE_CONV - Indicates that the Port has a synchronous sample rate convertor to convert between sample rates in the same Clock Domain.
+
+AEMDescriptor_STREAM_PORT_OUTPUT:
+  number_of_clusters: 1
+  number_of_maps: 1
+
+AEMDescriptor_AUDIO_CLUSTER:
+  channel_count: 8
+  signal_type: 0xFFFF # For a Cluster attached to a STREAM_PORT_INPUT the signal_type and signal_index fields is set to INVALID and zero (0) respectively.
+  signal_index: 0
+
+AEMDescriptor_AUDIO_MAP:
+  number_of_mappings: 8
+
+# AEMDescriptor_CLOCK_DOMAIN:
+  # clock_sources: # list of clock source descriptor indexes, default (0,)
