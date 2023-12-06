@@ -55,11 +55,12 @@ tests:
   dependencies:
     - build
   stage: build
-  rules:
-    - if: $CI_RUNNER_DESCRIPTION == "AESRL rotter docker runner"
-      # our own runner with a premade image
-      image: aesrl_build:latest
-    - image: debian:latest
+  image: aesrl_build:latest
+#  rules:
+#    - if: $CI_RUNNER_DESCRIPTION == "AESRL rotter docker runner"
+#      # our own runner with a premade image
+#      image: aesrl_build:latest
+#    - image: debian:latest
   tags:
     - docker
     - aesrl
