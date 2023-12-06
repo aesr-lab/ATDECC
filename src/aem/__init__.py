@@ -1,5 +1,4 @@
 import atdecc_api as at
-import yaml
 from inspect import signature
 
 from aem.descriptors import *
@@ -21,35 +20,33 @@ class AEMDescriptorFactory:
         AEMDescriptorFactory.registry[descriptor_type] = descriptor_class
 
     @staticmethod
-    def create_descriptor(descriptor_type, descriptor_index, entity_info, config_path):
+    def create_descriptor(descriptor_type, descriptor_index, entity_info, config):
         descriptor_class = AEMDescriptorFactory.registry.get(descriptor_type)
 
         if not descriptor_class:
             raise ValueError(f"No descriptor class registered for type {descriptor_type}")
 
-        with open(config_path, 'r') as file:
-            config = yaml.safe_load(file)
-            descriptor_config = {}
+        descriptor_config = {}
 
-            try:
-                descriptor_config = config[descriptor_class.__name__]
-            except KeyError:
-                pass
+        try:
+            descriptor_config = config[descriptor_class.__name__]
+        except KeyError:
+            pass
 
-            kwargs = {**vars(entity_info), **descriptor_config}
-            init_sig = signature(descriptor_class.__init__)
-            base_init_sig = None
+        kwargs = {**vars(entity_info), **descriptor_config}
+        init_sig = signature(descriptor_class.__init__)
+        base_init_sig = None
 
-            # check if the immediate parent class isn't object
-            if descriptor_class.__bases__ != (object,):
-                base_init_sig = signature(descriptor_class.__base__.__init__)
-            
-            init_parameters = {**init_sig.parameters, **base_init_sig.parameters}
+        # check if the immediate parent class isn't object
+        if descriptor_class.__bases__ != (object,):
+            base_init_sig = signature(descriptor_class.__base__.__init__)
 
-            # filter kwargs
-            allowed_kwargs = {k: v for k, v in kwargs.items() if k in init_parameters}
+        init_parameters = {**init_sig.parameters, **base_init_sig.parameters}
 
-            return descriptor_class(**allowed_kwargs)
+        # filter kwargs
+        allowed_kwargs = {'descriptor_index': descriptor_index, **{k: v for k, v in kwargs.items() if k in init_parameters}}
+
+        return descriptor_class(**allowed_kwargs)
 
 # TODO can we iterate over all existing subclasses of AEMDescriptor?
 AEMDescriptorFactory.register(at.JDKSAVDECC_DESCRIPTOR_ENTITY, AEMDescriptor_ENTITY)
