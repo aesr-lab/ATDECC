@@ -13,7 +13,12 @@ if [ -z "$VERSION" ]; then
 fi
 
 ver_norev=${VERSION%-*}
-rev=${VERSION##*-}
+
+if [ -z "$CI_JOB_ID" ]; then
+	rev=${VERSION##*-}
+else
+	rev="$CI_JOB_ID"
+fi
 
 if [ -z "$ver_norev" ] || [ -z "$rev" ]; then
         echo "Version string $VERSION incorrect" > /dev/stderr

@@ -15,6 +15,6 @@ debpkg: debpkg/debian/control debpkg/debian/changelog
 debpkg/debian/changelog: debpkg/debian/changelog.in ./patch_changelog.sh
 	./patch_changelog.sh "$<" "$@"
 
-clean:
+clean: debpkg/debian/control debpkg/debian/changelog
 	$(MAKE) -C src clean
 	cd debpkg && dh clean
