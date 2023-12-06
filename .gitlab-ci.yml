@@ -61,9 +61,6 @@ tests:
 #      # our own runner with a premade image
 #      image: aesrl_build:latest
 #    - image: debian:latest
-  tags:
-    - docker
-    - aesrl
   before_script:
     - apt-get update -qq && apt-get install git devscripts equivs -yy
   script:
@@ -85,7 +82,8 @@ build_debian_x86_64:
   variables:
     ARCH: x86_64
   tags:
-    - !reference [".build_debian", "tags"]
+    - docker
+    - aesrl
     - x86_64
 
 build_debian_arm64:
@@ -93,7 +91,8 @@ build_debian_arm64:
   variables:
     ARCH: arm64
   tags:
-    - !reference [".build_debian", "tags"]
+    - docker
+    - aesrl
     - arm64
 
 
