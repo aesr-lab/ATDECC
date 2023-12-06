@@ -3,7 +3,7 @@
 all:
 	$(MAKE) -C src
 
-builddeps:
+builddeps: sources/debian/control
 	# install packages listed in "Build-Depends:" section
 	echo "Y" | mk-build-deps -i "$<"
 	# check again
