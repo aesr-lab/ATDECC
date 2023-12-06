@@ -82,7 +82,6 @@ tests:
 build_debian_x86_64:
   extends: .build_debian
   variables:
-    - !reference [".build_debian", "variables"]
     ARCH: x86_64
   tags:
     - !reference [".build_debian", "tags"]
@@ -91,7 +90,6 @@ build_debian_x86_64:
 build_debian_arm64:
   extends: .build_debian
   variables:
-    - !reference [".build_debian", "variables"]
     ARCH: arm64
   tags:
     - !reference [".build_debian", "tags"]
