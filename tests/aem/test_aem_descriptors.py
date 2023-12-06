@@ -1,6 +1,6 @@
 import pytest
+import yaml
 from unittest.mock import patch, Mock
-import configparser
 
 import atdecc_api as at
 from util import *
@@ -8,11 +8,14 @@ from aem import AEMDescriptorFactory
 from adp import EntityInfo
 
 class TestAEMDescriptors:
+    def config(self):
+        return yaml.safe_load(open("./tests/fixtures/config.yml", 'r'))
+
     def test_aem_descriptor_entity(self):
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_entity = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_ENTITY, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_entity = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_ENTITY, descriptor_index, em, self.config())
 
         assert "aesrl 16-channel" == avstr_to_str(descriptor_entity.descriptor.entity_name)
         assert "aesrl" == avstr_to_str(descriptor_entity.descriptor.group_name)
@@ -22,7 +25,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_configuration = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_CONFIGURATION, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_configuration = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_CONFIGURATION, descriptor_index, em, self.config())
 
         # from config
         assert 5 == descriptor_configuration.descriptor.descriptor_counts_count
@@ -52,7 +55,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_audio_unit = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_audio_unit = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT, descriptor_index, em, self.config())
 
         # from config
         assert "AESRL Audio Unit" == avstr_to_str(descriptor_audio_unit.descriptor.object_name)
@@ -99,7 +102,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_stream_input = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_stream_input = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT, descriptor_index, em, self.config())
         # from config
         assert 0x0205022002006000 == eui64_to_uint64(descriptor_stream_input.descriptor.current_format)
         assert 666 == descriptor_stream_input.descriptor.buffer_length
@@ -123,7 +126,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_stream_output = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_stream_output = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT, descriptor_index, em, self.config())
         # from config
         assert 0x0205022002006000 == eui64_to_uint64(descriptor_stream_output.descriptor.current_format)
         assert 666 == descriptor_stream_output.descriptor.buffer_length
@@ -147,7 +150,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_jack_input = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_JACK_INPUT, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_jack_input = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_JACK_INPUT, descriptor_index, em, self.config())
 
         # default values
         assert 0 == descriptor_jack_input.descriptor.jack_flags
@@ -162,7 +165,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_jack_output = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_JACK_OUTPUT, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_jack_output = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_JACK_OUTPUT, descriptor_index, em, self.config())
 
         # default values
         assert 0 == descriptor_jack_output.descriptor.jack_flags
@@ -177,7 +180,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_avb_interface = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_avb_interface = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE, descriptor_index, em, self.config())
 
         # default
         assert em.entity_id == eui64_to_uint64(descriptor_avb_interface.descriptor.clock_identity)
@@ -201,7 +204,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_clock_source = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_clock_source = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE, descriptor_index, em, self.config())
 
         # default
         assert 0 == descriptor_clock_source.descriptor.clock_source_location_index
@@ -216,7 +219,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_stream_port_input = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_stream_port_input = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT, descriptor_index, em, self.config())
 
         # default
         assert 0 == descriptor_stream_port_input.descriptor.clock_domain_index
@@ -233,7 +236,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_stream_port_output = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_OUTPUT, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_stream_port_output = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_OUTPUT, descriptor_index, em, self.config())
 
         # default
         assert 0 == descriptor_stream_port_output.descriptor.clock_domain_index
@@ -251,7 +254,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_audio_cluster = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_AUDIO_CLUSTER, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_audio_cluster = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_AUDIO_CLUSTER, descriptor_index, em, self.config())
 
         # from config
         assert at.JDKSAVDECC_DESCRIPTOR_INVALID == descriptor_audio_cluster.descriptor.signal_type
@@ -270,7 +273,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_audio_map = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_AUDIO_MAP, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_audio_map = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_AUDIO_MAP, descriptor_index, em, self.config())
 
         # from config
         assert 8 == descriptor_audio_map.descriptor.number_of_mappings
@@ -282,7 +285,7 @@ class TestAEMDescriptors:
         em = EntityInfo(entity_id=42)
 
         descriptor_index = 0
-        descriptor_clock_domain = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN, descriptor_index, em, "./tests/fixtures/config.yml")
+        descriptor_clock_domain = AEMDescriptorFactory.create_descriptor(at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN, descriptor_index, em, self.config())
 
         # defaults
         assert 0 == descriptor_clock_domain.descriptor.clock_source_index

@@ -394,6 +394,8 @@ class AEMDescriptor_AUDIO_CLUSTER(AEMDescriptor):
         channel_count=1,
         format=at.JDKSAVDECC_AUDIO_CLUSTER_FORMAT_MBLA,
     ):
+        super().__init__()
+
         ch_start = descriptor_index*8
         self.descriptor = self.descriptor_struct(
             descriptor_type=self.descriptor_type, 

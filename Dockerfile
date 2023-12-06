@@ -15,5 +15,7 @@ RUN pip install -r requirements.txt
 RUN pip freeze > requirements.txt
 RUN make clean && make
 
+COPY ./tests/fixtures/config.yml /etc/atdecc/config.yml
+
 ENV LD_LIBRARY_PATH=/atdecc/src
 CMD ["/atdecc/src/atdecc.py", "-d"]

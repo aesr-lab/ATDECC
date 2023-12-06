@@ -10,6 +10,7 @@ from threading import Thread, Event
 from queue import Queue, Empty
 import copy
 import random
+import yaml
 import traceback
 import pdb
 
@@ -494,6 +495,9 @@ class EntityModelEntityStateMachine(Thread):
         self.unsolicited_list = set()
         
         self.owner_entity_id = 0 # uint64
+
+        # config
+        self.config = yaml.safe_load(open('/etc/atdecc/config.yml', 'r'))
         
     def performTerminate(self):
         self.doTerminate = True
@@ -662,257 +666,19 @@ class EntityModelEntityStateMachine(Thread):
             configuration_index = 0 # need to adjust if more than one configuration
 
             logging.debug("READ_DESCRIPTOR %s", api_enum('JDKSAVDECC_DESCRIPTOR_', descriptor_type))
+            logging.debug("DESCRIPTOR INDEX %d", descriptor_index)
 
-            if descriptor_type == at.JDKSAVDECC_DESCRIPTOR_ENTITY:
-                configuration_index = 0 # always 0
-                descriptor = at.struct_jdksavdecc_descriptor_entity(
-                    descriptor_type=descriptor_type, 
-                    descriptor_index=descriptor_index,
-                    entity_id=uint64_to_eui64(em.entity_id),
-                    entity_model_id=uint64_to_eui64(em.entity_model_id),
-                    entity_capabilities=em.entity_capabilities,
-                    talker_stream_sources=em.talker_stream_sources,
-                    talker_capabilities=em.talker_capabilities,
-                    listener_stream_sinks=em.listener_stream_sinks,
-                    listener_capabilities=em.listener_capabilities,
-                    controller_capabilities=em.controller_capabilities,
-                    available_index=em.available_index,
-                    association_id=uint64_to_eui64(em.association_id),
-                    entity_name=str_to_avstr("aesrl 16-channel"),
-                    vendor_name_string=0,
-                    model_name_string=0,
-                    firmware_version=str_to_avstr("0.0"),
-                    group_name=str_to_avstr("aesrl"),
-                    serial_number=str_to_avstr("0.0"),
-                    configurations_count=1,
-                    current_configuration=0,
-                )
-                response_payload = pack_struct(descriptor)
+            descriptor = None
 
-            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_CONFIGURATION:
-                configuration_index = 0 # always 0
-                descriptor = at.struct_jdksavdecc_descriptor_configuration(
-                    descriptor_type=descriptor_type, 
-                    descriptor_index=descriptor_index,
-                    object_name=str_to_avstr("16 in"),
-                    localized_description=0,
-                    descriptor_counts_count=5,
-                    descriptor_counts_offset=74,
-                )
-                descriptor_counts = struct.pack("!10H",
-                    at.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT, 1,
-#                    at.JDKSAVDECC_DESCRIPTOR_VIDEO_UNIT, 0,
-#                    at.JDKSAVDECC_DESCRIPTOR_SENSOR_UNIT, 0,
-                    at.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT, 1,
-#                    at.JDKSAVDECC_DESCRIPTOR_STREAM_OUTPUT, 0,
-#                    at.JDKSAVDECC_DESCRIPTOR_JACK_INPUT, 0,
-#                    at.JDKSAVDECC_DESCRIPTOR_JACK_OUTPUT, 16,
-                    at.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE, 1,
-                    at.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE, 1,
-#                    at.JDKSAVDECC_DESCRIPTOR_CONTROL, 1,
-#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_SELECTOR, 1,
-#                    at.JDKSAVDECC_DESCRIPTOR_MIXER, 1,
-#                    at.JDKSAVDECC_DESCRIPTOR_MATRIX, 1,
-#                    at.JDKSAVDECC_DESCRIPTOR_LOCALE, 1,
-#                    at.JDKSAVDECC_DESCRIPTOR_MATRIX_SIGNAL, 1,
-#                    at.JDKSAVDECC_DESCRIPTOR_MEMORY_OBJECT, 0,
-#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_SPLITTER, 0,
-#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_COMBINER, 0,
-#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_DEMULTIPLEXER, 0,
-#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_MULTIPLEXER, 0,
-#                    at.JDKSAVDECC_DESCRIPTOR_SIGNAL_TRANSCODER, 0,
-                    at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN, 1,
-#                    at.JDKSAVDECC_DESCRIPTOR_CONTROL_BLOCK, 0,
-#                    at.JDKSAVDECC_DESCRIPTOR_TIMING, 0,
-#                    at.JDKSAVDECC_DESCRIPTOR_PTP_INSTANCE, 0,
-                )
-                response_payload = pack_struct(descriptor)+descriptor_counts
 
-            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_AUDIO_UNIT:
-                descriptor = at.struct_jdksavdecc_descriptor_audio_unit(
-                    descriptor_type=descriptor_type, 
-                    descriptor_index=descriptor_index,
-                    object_name=at.struct_jdksavdecc_string(),
-                    localized_description=0,
-                    clock_domain_index=0,
-                    number_of_stream_input_ports=2,
-                    base_stream_input_port=0,
-                    number_of_stream_output_ports=0,
-                    base_stream_output_port=0,
-                    number_of_external_input_ports=0,
-                    base_external_input_port=0,
-                    number_of_external_output_ports=16,
-                    base_external_output_port=0,
-                    number_of_internal_input_ports=0,
-                    base_internal_input_port=0,
-                    number_of_internal_output_ports=0,
-                    base_internal_output_port=0,
-                    number_of_controls=0,
-                    base_control=0,
-                    number_of_signal_selectors=0,
-                    base_signal_selector=0,
-                    number_of_mixers=0,
-                    base_mixer=0,
-                    number_of_matrices=0,
-                    base_matrix=0,
-                    number_of_splitters=0,
-                    base_splitter=0,
-                    number_of_combiners=0,
-                    base_combiner=0,
-                    number_of_demultiplexers=0,
-                    base_demultiplexer=0,
-                    number_of_multiplexers=0,
-                    base_multiplexer=0,
-                    number_of_transcoders=0,
-                    base_transcoder=0,
-                    number_of_control_blocks=0,
-                    base_control_block=0,
-                    current_sampling_rate=48000,
-                    sampling_rates_offset=144,
-                    sampling_rates_count=1,
-                )
-                sample_rates = struct.pack("!1L", 48000) # the 3 MSBs are used for a multiplier: 000 here, means multiplier 1.
-                response_payload = pack_struct(descriptor)+sample_rates
+            try:
+                descriptor = AEMDescriptorFactory.create_descriptor(descriptor_type, descriptor_index, em, self.config)
+                response_payload = descriptor.encode()
+            except ValueError:
+                logging.error("DESCRIPTOR CLASS NOT FOUND")
+                traceback.print_exc()
+                pass
 
-            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT:
-                descriptor = at.struct_jdksavdecc_descriptor_stream_port(
-                    descriptor_type=descriptor_type, 
-                    descriptor_index=descriptor_index,
-                    clock_domain_index=0,
-                    port_flags=0x0001, # CLOCK_SYNC_SOURCE - Indicates that the Port can be used as a clock synchronization source.
-#                               0x0002 + # ASYNC_SAMPLE_RATE_CONV - Indicates that the Port has an asynchronous sample rate con­vertor to convert sample rates between another Clock Domain and the Unit’s.
-#                               0x0004, # SYNC_SAMPLE_RATE_CONV - Indicates that the Port has a synchronous sample rate convertor to convert between sample rates in the same Clock Domain.
-                    number_of_controls=0,
-                    base_control=0,
-                    number_of_clusters=1,
-                    base_cluster=descriptor_index,
-                    number_of_maps=1,
-                    base_map=descriptor_index,
-                )
-                response_payload = pack_struct(descriptor)
-
-            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_STREAM_INPUT:
-                descriptor = at.struct_jdksavdecc_descriptor_stream(
-                    descriptor_type=descriptor_type, 
-                    descriptor_index=descriptor_index,
-                    object_name=str_to_avstr(f"Audio Input Stream {descriptor_index+1}"),
-                    localized_description=0,
-                    clock_domain_index=0,
-                    stream_flags=at.JDKSAVDECC_DESCRIPTOR_STREAM_FLAG_CLOCK_SYNC_SOURCE +
-                                    at.JDKSAVDECC_DESCRIPTOR_STREAM_FLAG_CLASS_A +
-                                    0x8000,  # SUPPORTS_NO_SRP - new flag 
-                    current_format=uint64_to_eui64(0x0205022002006000),
-                    formats_offset=138,
-                    number_of_formats=1, # N
-                    backup_talker_entity_id_0=uint64_to_eui64(0),
-                    backup_talker_unique_id_0=0,
-                    backup_talker_entity_id_1=uint64_to_eui64(0),
-                    backup_talker_unique_id_1=0,
-                    backup_talker_entity_id_2=uint64_to_eui64(0),
-                    backup_talker_unique_id_2=0,
-                    backedup_talker_entity_id=uint64_to_eui64(0),
-                    backedup_talker_unique=0,
-                    avb_interface_index=0,
-                    buffer_length=666,
-                )
-                formats = struct.pack("!3HQ",
-                    138+8*1, # redundant_offset (138 + 8*N)
-                    0, # number_of_redundant_streams R
-                    0, # timing
-                    # N stream formats
-                    0x0205022002006000, # Standard/HC32 (48kHz, 32-bit int, 8 ch per frame, 6 smps per frame)
-                    # R redundant streams
-                )
-                response_payload = pack_struct(descriptor)+formats
-
-            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_AVB_INTERFACE:
-                descriptor = at.struct_jdksavdecc_descriptor_avb_interface(
-                    descriptor_type=descriptor_type, 
-                    descriptor_index=descriptor_index,
-                    object_name=at.struct_jdksavdecc_string(),
-                    localized_description=0,
-                    mac_address=uint64_to_eui48(0x1007236de8b9),
-                    interface_flags= \
-#                        at.JDKSAVDECC_AVB_INTERFACE_FLAG_GPTP_GRANDMASTER_SUPPORTED +
-                        at.JDKSAVDECC_AVB_INTERFACE_FLAG_GPTP_SUPPORTED,
-#                       at.JDKSAVDECC_AVB_INTERFACE_FLAG_SRP_SUPPORTED,
-                    clock_identity=uint64_to_eui64(self.entity_info.entity_id),
-                    priority1=0,
-                    clock_class=0,
-                    offset_scaled_log_variance=0,
-                    clock_accuracy=0,
-                    priority2=0,
-                    domain_number=0,
-                    log_sync_interval=0,
-                    log_announce_interval=0,
-                    log_pdelay_interval=0,
-                    port_number=0,
-                    # IEEE Std 1722.1TM­2021 has two more members:
-                    # number_of_controls (uint16)
-                    # base_control (uint16)
-                )
-                response_payload = pack_struct(descriptor)
-                
-            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_AUDIO_CLUSTER:
-                ch_start = descriptor_index*8
-                descriptor = at.struct_jdksavdecc_descriptor_audio_cluster(
-                    descriptor_type=descriptor_type, 
-                    descriptor_index=descriptor_index,
-                    object_name=str_to_avstr(f"Channels {ch_start+1}-{ch_start+8} In"),
-                    localized_description=0,
-                    signal_type=at.JDKSAVDECC_DESCRIPTOR_STREAM_PORT_INPUT,  # The descriptor_type for the signal source of the cluster.
-                    signal_index=descriptor_index,  # The descriptor_index for the signal source of the cluster.
-                    signal_output=0,
-                    path_latency=0,
-                    block_latency=0,
-                    channel_count=8,
-                    format=at.JDKSAVDECC_AUDIO_CLUSTER_FORMAT_MBLA,
-                    PADDING_0=0,
-                )
-                response_payload = pack_struct(descriptor)
-                
-            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_AUDIO_MAP:
-                descriptor = at.struct_jdksavdecc_descriptor_audio_map(
-                    descriptor_type=descriptor_type, 
-                    descriptor_index=descriptor_index,
-                    mappings_offset=8,
-                    number_of_mappings=8, # N
-                    # N mappings: !4H = (mapping_stream_index, mapping_stream_channel, mapping_cluster_offset, mapping_cluster_channel)
-                )
-                m = [(descriptor_index, c, 0, c) for c in range(8)]
-                mappings = struct.pack("!32H", *flatten_list(m))
-                response_payload = pack_struct(descriptor)+mappings
-                
-            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN:
-                descriptor = at.struct_jdksavdecc_descriptor_clock_domain(
-                    descriptor_type=descriptor_type, 
-                    descriptor_index=descriptor_index,
-                    object_name=str_to_avstr(""),
-                    localized_description=0,
-                    clock_source_index=0,
-                    clock_sources_offset=76,
-                    clock_sources_count=1, # C
-                    # C*2: list of CLOCK_SOURCE descriptor indices
-                )
-                clk_sources = struct.pack("!H", 0)
-                response_payload = pack_struct(descriptor)+clk_sources
-                
-            elif descriptor_type == at.JDKSAVDECC_DESCRIPTOR_CLOCK_SOURCE:
-                descriptor = at.struct_jdksavdecc_descriptor_clock_source(
-                    descriptor_type=descriptor_type, 
-                    descriptor_index=descriptor_index,
-                    object_name=str_to_avstr(""),
-                    localized_description=0,
-                    clock_source_flags=0x0001, # Table 7-16: LOCAL_ID
-                    clock_source_type=0x0002, # Table 7-17: INPUT_STREAM
-                    clock_source_identifier=uint64_to_eui64(0xffffffffffffffff),
-                    clock_source_location_type=at.JDKSAVDECC_DESCRIPTOR_CLOCK_DOMAIN,
-                    clock_source_location_index=0,
-                )
-                response_payload = pack_struct(descriptor)
-                
-            else:
-                descriptor = None    
             
             if descriptor is not None:
                 response = copy.deepcopy(command)
