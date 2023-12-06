@@ -2,6 +2,7 @@ image: python:3.9
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  DISTRO: unstable
 
 cache:
   paths:
@@ -11,39 +12,99 @@ cache:
 stages:
   - build
   - test
+  - deploy
 
-before_script:
-  - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev -yy
-  - python -V
-  - cp .gitmodules.gitlab .gitmodules
-  - git submodule update --init --recursive
-  - pip install virtualenv
-  - virtualenv venv
-  - source venv/bin/activate
-  - pip install -r requirements.txt
-  - pip freeze > requirements.txt
+
+.python:
+  tags:
+    - docker
+  before_script:
+    - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev -yy
+    - python -V
+    - cp .gitmodules.gitlab .gitmodules
+    - git submodule update --init --recursive
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+    - pip freeze > requirements.txt
+  only:
+    - merge_requests
 
 build:
   stage: build
-  tags:
-    - docker
+  extends: .python
   script:
     - make
   artifacts:
     paths:
       - src/
-  only:
-    - merge_requests
 
 tests:
   stage: test
+  extends: .python
   dependencies:
     - build
   variables:
     LD_LIBRARY_PATH: $CI_PROJECT_DIR/src
-  tags:
-    - docker
   script:
     - pytest
-  only:
-    - merge_requests
+
+
+.build_debian:
+  dependencies:
+    - build
+  stage: build
+  rules:
+    - if: $CI_RUNNER_DESCRIPTION == "AESRL rotter docker runner"
+      # our own runner with a premade image
+      image: aesrl_build:latest
+    - image: debian:latest
+  tags:
+    - docker
+    - aesrl
+  before_script:
+    - apt-get update -qq && apt-get install git devscripts equivs -yy
+  script:
+    - make builddeps
+    - make clean
+    - make
+  artifacts:
+    paths:
+      - ./${CI_PROJECT_NAME}*.deb
+    expire_in: 1h
+
+.build_debian_scheduled:
+  extends: .build_debian
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+build_debian_x86_64:
+  extends: .build_debian
+  variables:
+    - !reference [".build_debian", "variables"]
+    ARCH: x86_64
+  tags:
+    - !reference [".build_debian", "tags"]
+    - x86_64
+
+build_debian_arm64:
+  extends: .build_debian
+  variables:
+    - !reference [".build_debian", "variables"]
+    ARCH: arm64
+  tags:
+    - !reference [".build_debian", "tags"]
+    - arm64
+
+
+upload:
+  stage: deploy
+  tags:
+    - docker
+    - aesrl
+  before_script:
+    - apt-get update -qq
+    - apt-get install lftp -yy
+  script:
+    - ./upload.sh debian/incoming/$DISTRO

@@ -1,0 +1,20 @@
+Source: atdecc-py
+Maintainer: Thomas Grill <grill@mdw.ac.at>
+Homepage: http://aesr-lab.at
+Section: admin
+Priority: extra
+Standards-Version: 3.9.5
+Build-Depends: 
+	debhelper (>= 11),
+	build-essential,
+	gettext-base,
+	python3
+
+Package: atdecc-py
+Architecture: any
+Depends:
+	python3,
+	bash,
+	avahi-daemon,
+	${misc:Depends}
+Description: Python-based ATDECC controller

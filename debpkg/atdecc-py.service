@@ -1,0 +1,11 @@
+[Unit]
+Description=Python-based ATDECC service
+After=syslog.target network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=
+ExecStop=
+Restart=on-failure
+RestartSec=10
