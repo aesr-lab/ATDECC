@@ -1,8 +1,8 @@
 [submodule "jdksavdecc-c"]
 	path = jdksavdecc-c
-	url = git@gitlab.grrrr.org:aesrl/os/jdksavdecc-c.git
+	url = https://gitlab.grrrr.org/aesrl/os/jdksavdecc-c.git
 	branch = aesrl
 [submodule "avdecc-cmd"]
 	path = avdecc-cmd
-	url = git@gitlab.grrrr.org:aesrl/os/avdecc-cmd.git
+	url = https://gitlab.grrrr.org/aesrl/os/avdecc-cmd.git
 	branch = aesrl
