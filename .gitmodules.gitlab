@@ -1,8 +1,0 @@
-[submodule "jdksavdecc-c"]
-	path = jdksavdecc-c
-	url = ../jdksavdecc-c.git
-	branch = aesrl
-[submodule "avdecc-cmd"]
-	path = avdecc-cmd
-	url = ../avdecc-cmd.git
-	branch = aesrl
