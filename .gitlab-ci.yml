@@ -1,5 +1,3 @@
-image: python:3.9
-
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   DISTRO: unstable
@@ -20,7 +18,7 @@ stages:
   tags:
     - docker
   before_script:
-    - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev -yy
+    - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev python3 -yy
     - python3 -m venv venv
     - source venv/bin/activate
     - pip install -r requirements.txt
@@ -62,8 +60,7 @@ test_python:
     - apt-get update -qq && apt-get install git devscripts equivs python3 -yy
   script:
     - make builddeps
-    - pip install virtualenv
-    - virtualenv venv
+    - python3 -m venv venv
     - source venv/bin/activate
     - pip install -r requirements.txt
     - make clean
