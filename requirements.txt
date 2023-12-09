@@ -1,4 +1,4 @@
-clang
+clang==14.*
 ctypeslib2
 iniconfig
 netifaces
