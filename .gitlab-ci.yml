@@ -3,10 +3,10 @@ variables:
   DISTRO: unstable
   GIT_SUBMODULE_STRATEGY: recursive
 
-cache:
-  paths:
-    - .cache/pip
-    - venv/
+#cache:
+#  paths:
+#    - .cache/pip
+#    - venv/
 
 stages:
   - build
