@@ -21,11 +21,7 @@ stages:
     - docker
   before_script:
     - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev -yy
-    - python -V
-    - cp .gitmodules.gitlab .gitmodules
-    - git submodule update --init --recursive
-    - pip install virtualenv
-    - virtualenv venv
+    - python3 -m venv venv
     - source venv/bin/activate
     - pip install -r requirements.txt
     - pip freeze > requirements.txt
@@ -63,9 +59,13 @@ test_python:
 #      image: aesrl_build:latest
 #    - image: debian:latest
   before_script:
-    - apt-get update -qq && apt-get install git devscripts equivs -yy
+    - apt-get update -qq && apt-get install git devscripts equivs python3 -yy
   script:
     - make builddeps
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
     - make clean
     - make -j$(nproc)
     - make -j$(nproc) debpkg
