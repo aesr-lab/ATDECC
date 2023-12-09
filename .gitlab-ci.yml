@@ -18,7 +18,7 @@ stages:
   tags:
     - docker
   before_script:
-    - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev python3-venv -yy
+    - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev python3-venv python3-dev -yy
     - python3 -m venv venv
     - source venv/bin/activate
     - pip install -r requirements.txt
@@ -56,7 +56,7 @@ test_python:
 #      image: aesrl_build:latest
 #    - image: debian:latest
   before_script:
-    - apt-get update -qq && apt-get install git devscripts equivs python3-venv -yy
+    - apt-get update -qq && apt-get install git devscripts equivs python3-venv python3-dev -yy
   script:
     - make builddeps
     - python3 -m venv venv
