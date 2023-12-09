@@ -29,7 +29,7 @@ fi
 echo $ver_norev-$((rev+1)) > .version
 
 if [ -z "$DATE" ]; then
-        DATE=$(date +"%a, %d %b %Y %H:%I:%S %z")
+        DATE=$(LANG= date +"%a, %d %b %Y %H:%I:%S %z")
 fi
 
-VERSION=$VERSION DATE=$DATE envsubst <"$1" >"$2"
+VERSION="$VERSION" DATE="$DATE" envsubst <"$1" >"$2"
