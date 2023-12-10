@@ -6,6 +6,7 @@ Priority: extra
 Standards-Version: 3.9.5
 Build-Depends: 
 	debhelper (>= 11),
+	dh-python,
 	build-essential,
 	libpcap-dev,
 	gettext-base,

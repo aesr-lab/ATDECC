@@ -1,0 +1,33 @@
+[project]
+name = "atdecc-py"
+version = "0.1-0"
+authors = [
+  { name="Julian Rubisch", email="julian.rubisch@hey.com" },
+  { name="Thomas Grill", email="gr@grrrr.org" },
+]
+description = "Python-based ATDECC controller"
+readme = "readme.md"
+requires-python = ">=3.8"
+
+# https://pypi.org/classifiers/
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: No Input/Output (Daemon)",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
+    "Operating System :: Unix",
+    "Topic :: Multimedia :: Sound/Audio",
+]
+
+[project.urls]
+#Homepage = "https://github.com/aesrl/atdecc-py"
+#Issues = "https://github.com/aesrl/atdecc-py/issues"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+#[tool.setuptools]
+#packages = ["atdecc-py"]
+#packages.find.where = ["src"]
+#package-data.atdecc-py = ["atdecc_api_mod.*"]

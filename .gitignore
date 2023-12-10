@@ -22,3 +22,5 @@ __pycache__
 *.substvars
 *.tar.gz
 
+*.egg-info
+

@@ -31,9 +31,12 @@ build_python:
   extends: .python
   script:
     - make -j$(nproc)
+    - pip install --upgrade build
+    - python -m build
   artifacts:
     paths:
       - src/
+      - dist/
 
 test_python:
   stage: test

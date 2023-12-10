@@ -7,14 +7,14 @@ SYS := $(shell gcc -dumpmachine)
 CLANG_RESOURCE_DIR := $(shell clang -print-resource-dir)
 DEBUG ?= 0
 
-C_HDRS=$(wildcard ../jdksavdecc-c/include/*.h) 
-CPP_SRCS=$(wildcard *.cpp) 
-C_SRCS=$(wildcard ../jdksavdecc-c/src/*.c) $(wildcard ../avdecc-cmd/src/*.c)
+C_HDRS=$(wildcard ../../jdksavdecc-c/include/*.h)
+CPP_SRCS=$(wildcard *.cpp)
+C_SRCS=$(wildcard ../../jdksavdecc-c/src/*.c) $(wildcard ../../avdecc-cmd/src/*.c)
 OBJS=$(patsubst %.c,%.o,$(C_SRCS)) $(patsubst %.cpp,%.opp,$(CPP_SRCS))
 
 LD_FLAGS=-lpcap
 
-OPTIONS=-I../jdksavdecc-c/include -I../avdecc-cmd/include -Davdecc_c_EXPORTS -fPIC -fvisibility=hidden
+OPTIONS=-I../../jdksavdecc-c/include -I../../avdecc-cmd/include -Davdecc_c_EXPORTS -fPIC -fvisibility=hidden
 
 ifeq ($(DEBUG), 1)
 OPTIONS+=-O0 -g -DDEBUG
@@ -53,7 +53,7 @@ $(DYLIB): $(OBJS)
 $(APIMOD): interface.h $(DYLIB) Makefile ./patch_api.sh ./cvt_header.py $(C_HDRS)
 	-mkdir ./include
 	for f in $(C_HDRS); do ./cvt_header.py "$$f" "./include/$${f##*/}"; done
-	clang2py -l$(DYLIB) -i --clang-args="-I./include -I../avdecc-cmd/include -I$(CLANG_RESOURCE_DIR)/include" $< -o $@
+	clang2py -l$(DYLIB) -i --clang-args="-I./include -I../../avdecc-cmd/include -I$(CLANG_RESOURCE_DIR)/include" $< -o $@
 	test -s $@
 	./patch_api.sh "$@"
 
