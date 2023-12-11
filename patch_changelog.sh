@@ -5,7 +5,7 @@
 
 if [ -z "$VERSION" ]; then
 	VERSION="0.01-0"
-	echo "No version given: assuming $VERSION" > /dev/stderr
+#	echo "No version given: assuming $VERSION" > /dev/stderr
 fi
 
 ver_norev=${VERSION%-*}
@@ -21,7 +21,6 @@ if [ -z "$ver_norev" ] || [ -z "$rev" ]; then
         exit -1
 fi
 
-# Writing new revision number to .version file
 VERSION="$ver_norev-$rev" 
 
 if [ -z "$DATE" ]; then
