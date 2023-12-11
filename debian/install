@@ -1,4 +1,3 @@
 #! /bin/bash
 
 echo '*.service /etc/systemd/system/'
-

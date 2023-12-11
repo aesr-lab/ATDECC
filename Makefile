@@ -1,20 +1,17 @@
-.PHONY: all clean debpkg
+.PHONY: clean debpkg
 
-all:
-	$(MAKE) -C src/atdecc_py
-
-builddeps: debpkg/debian/control
+builddeps: debian/control
 	# install packages listed in "Build-Depends:" section
 	echo "Y" | mk-build-deps -i "$<"
 	# check again
 	dpkg-checkbuilddeps "$<"
 
-debpkg: debpkg/debian/control debpkg/debian/changelog
-	cd debpkg && dpkg-buildpackage --build=source,any
+debpkg: debian/control debian/changelog
+	dpkg-buildpackage --build=source,any
 
-debpkg/debian/changelog: debpkg/debian/changelog.in ./patch_changelog.sh
+debian/changelog: debian/changelog.in ./patch_changelog.sh
 	./patch_changelog.sh "$<" "$@"
 
-clean: debpkg/debian/control debpkg/debian/changelog
+clean: debian/control debian/changelog
 	$(MAKE) -C src/atdecc_py clean
-	cd debpkg && dh clean
+#	dh clean

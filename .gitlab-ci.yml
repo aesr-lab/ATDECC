@@ -28,7 +28,7 @@ stages:
 build_python:
   extends: .python
   script:
-    - make -j$(nproc)
+    - make -j$(nproc) -C src/atdecc_py
   artifacts:
     paths:
       - src/
