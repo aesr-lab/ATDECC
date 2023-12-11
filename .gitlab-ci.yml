@@ -15,8 +15,7 @@ stages:
 
 
 .python:
-  tags:
-    - docker
+  stage: build
   before_script:
     - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev python3-venv python3-dev -yy
     - python3 -m venv venv
@@ -27,7 +26,6 @@ stages:
     - merge_requests
 
 build_python:
-  stage: build
   extends: .python
   script:
     - make -j$(nproc)
@@ -36,10 +34,9 @@ build_python:
       - src/
 
 build_wheel:
-  stage: build
+  extends: .python
   dependencies:
     - build_python
-  extends: .python
   script:
     - python -m build
   artifacts:
@@ -47,8 +44,8 @@ build_wheel:
       - dist/
 
 test_python:
-  stage: test
   extends: .python
+  stage: test
   dependencies:
     - build_python
   variables:
@@ -57,23 +54,13 @@ test_python:
     - pytest
 
 .build_debian:
+  stage: build
   dependencies:
     - build_python
-  stage: build
-#  rules:
-#    - if: $CI_RUNNER_DESCRIPTION == "AESRL rotter docker runner"
-#      # our own runner with a premade image
-#      image: aesrl_build:latest
-#    - image: debian:latest
   before_script:
     - apt-get update -qq && apt-get install git devscripts equivs python3-venv python3-dev -yy
   script:
     - make builddeps
-#    - python3 -m venv venv
-#    - source venv/bin/activate
-#    - pip install -r requirements.txt
-#    - make clean
-#    - make -j$(nproc)
     - make -j$(nproc) debpkg
   artifacts:
     paths:
@@ -103,12 +90,21 @@ build_debian_arm64:
     - aesrl
     - arm64
 
+build_debian_armhf:
+  extends: .build_debian
+  variables:
+    ARCH: arm
+  tags:
+    - docker
+    - aesrl
+    - armhf
+
 
 upload:
   stage: deploy
   tags:
     - docker
-    - aesrl
+    - aesrl-website
   before_script:
     - apt-get update -qq
     - apt-get install lftp -yy
