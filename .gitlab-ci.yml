@@ -31,11 +31,19 @@ build_python:
   extends: .python
   script:
     - make -j$(nproc)
-    - pip install --upgrade build
-    - python -m build
   artifacts:
     paths:
       - src/
+
+build_wheel:
+  stage: build
+  dependencies:
+    - build_python
+  extends: .python
+  script:
+    - python -m build
+  artifacts:
+    paths:
       - dist/
 
 test_python:
@@ -47,7 +55,6 @@ test_python:
     LD_LIBRARY_PATH: $CI_PROJECT_DIR/src
   script:
     - pytest
-
 
 .build_debian:
   dependencies:
@@ -62,11 +69,11 @@ test_python:
     - apt-get update -qq && apt-get install git devscripts equivs python3-venv python3-dev -yy
   script:
     - make builddeps
-    - python3 -m venv venv
-    - source venv/bin/activate
-    - pip install -r requirements.txt
-    - make clean
-    - make -j$(nproc)
+#    - python3 -m venv venv
+#    - source venv/bin/activate
+#    - pip install -r requirements.txt
+#    - make clean
+#    - make -j$(nproc)
     - make -j$(nproc) debpkg
   artifacts:
     paths:

@@ -1,5 +1,5 @@
 [project]
-name = "atdecc-py"
+name = "atdecc_py"
 version = "0.1-0"
 authors = [
   { name="Julian Rubisch", email="julian.rubisch@hey.com" },
@@ -23,11 +23,11 @@ classifiers = [
 #Homepage = "https://github.com/aesrl/atdecc-py"
 #Issues = "https://github.com/aesrl/atdecc-py/issues"
 
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+#[build-system]
+#requires = ["setuptools>=61.0"]
+#build-backend = "setuptools.build_meta"
 
-#[tool.setuptools]
-#packages = ["atdecc-py"]
-#packages.find.where = ["src"]
-#package-data.atdecc-py = ["atdecc_api_mod.*"]
+#[build-system]
+#requires = ["flit_core >=3.2,<4"]
+#build-backend = "flit_core.buildapi"
+
