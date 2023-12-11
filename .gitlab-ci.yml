@@ -57,6 +57,8 @@ test_python:
 
 .build_debian:
   stage: build
+  dependencies:
+    - build_python
   before_script:
     - apt-get update -qq && apt-get install git devscripts equivs python3-venv python3-dev -yy
   script:
