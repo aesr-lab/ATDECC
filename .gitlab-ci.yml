@@ -12,6 +12,7 @@ stages:
   - prepare
   - build
   - test
+  - debian
   - deploy
 
 
@@ -56,7 +57,7 @@ test_python:
     - pytest
 
 .build_debian:
-  stage: build
+  stage: debian
   dependencies:
     - build_python
   before_script:
