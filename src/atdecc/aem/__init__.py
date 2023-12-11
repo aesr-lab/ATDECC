@@ -1,6 +1,6 @@
 from inspect import signature
 
-import ..atdecc_api as at
+from .. import atdecc_api as at
 from ..aem.descriptors import *
 
 

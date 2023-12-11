@@ -13,7 +13,7 @@ import traceback
 import pdb
 
 
-import .atdecc_api as av
+from . import atdecc_api as av
 from .atdecc_api import ATDECC_create, ATDECC_destroy, ATDECC_send
 
 from .pdu import *

@@ -1,6 +1,6 @@
 import struct
 
-import ..atdecc_api as at
+from .. import atdecc_api as at
 from ..util import *
 from ..pdu import *
 

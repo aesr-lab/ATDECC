@@ -1,7 +1,7 @@
 import struct
 import netifaces
 
-import .atdecc_api as at
+from . import atdecc_api as at
 
 
 def hexdump(bts):

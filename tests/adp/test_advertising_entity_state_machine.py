@@ -7,7 +7,7 @@ from atdecc import InterfaceStateMachine
 class TestAdvertisingEntityStateMachine:
 
     def test_random_device_delay(self):
-        with patch('adp.EntityInfo') as MockedEntityInfo:
+        with patch('atdecc.adp.EntityInfo') as MockedEntityInfo:
             # Set the `valid_time` attribute to return a specific value
             instance = MockedEntityInfo.return_value
             instance.valid_time = 62
@@ -30,7 +30,7 @@ class TestAdvertisingEntityStateMachine:
 
     def test_perform_advertise(self):
         # when waiting, advertise immediately
-        with patch('adp.AdvertisingEntityStateMachine.randomDeviceDelay') as MockedDeviceDelay:
+        with patch('atdecc.adp.AdvertisingEntityStateMachine.randomDeviceDelay') as MockedDeviceDelay:
             # we stub the random device delay to 0 so the DELAY phase is skipped
             MockedDeviceDelay.return_value = 0
 
