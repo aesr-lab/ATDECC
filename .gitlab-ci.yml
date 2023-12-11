@@ -26,6 +26,7 @@ stages:
     - merge_requests
 
 build_python:
+  stage: build
   extends: .python
   script:
     - make -j$(nproc) -C src/atdecc_py
@@ -34,6 +35,7 @@ build_python:
       - src/
 
 build_wheel:
+  stage: build
   extends: .python
   dependencies:
     - build_python
@@ -44,8 +46,8 @@ build_wheel:
       - dist/
 
 test_python:
-  extends: .python
   stage: test
+  extends: .python
   dependencies:
     - build_python
   variables:
@@ -55,8 +57,6 @@ test_python:
 
 .build_debian:
   stage: build
-  dependencies:
-    - build_python
   before_script:
     - apt-get update -qq && apt-get install git devscripts equivs python3-venv python3-dev -yy
   script:

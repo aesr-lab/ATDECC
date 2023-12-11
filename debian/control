@@ -11,6 +11,7 @@ Build-Depends:
 	libpcap-dev,
 	gettext-base,
 	python3,
+	python3-setuptools,
 	pybuild-plugin-pyproject
 
 Package: atdecc-py
