@@ -60,6 +60,8 @@ test_python:
   stage: debian
   dependencies:
     - build_python
+  variables:
+    LD_LIBRARY_PATH: $CI_PROJECT_DIR/src/atdecc
   before_script:
     - apt-get update -qq && apt-get install git devscripts equivs python3-venv python3-dev -yy
   script:

@@ -10,7 +10,7 @@ export DH_VERBOSE=1
 
 export PYBUILD_NAME=atdecc-py
 export PYBUILD_SYSTEM=pyproject
-export LD_LIBRARY_PATH=\$${CI_PROJECT_DIR}/src/atdecc
+
 %:
 	dh $@ --with python3 --buildsystem=pybuild
 
