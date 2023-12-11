@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import patch, Mock
 import time
 
-from adp import EntityInfo, DiscoveryStateMachine, GlobalStateMachine
-from util import *
+from atdecc.adp import EntityInfo, DiscoveryStateMachine, GlobalStateMachine
+from atdecc.util import *
 
 class TestDiscoveryStateMachine:
 

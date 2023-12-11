@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import patch, Mock
 import time
 
-from adp import EntityInfo, InterfaceStateMachine
-from util import *
+from atdecc.adp import EntityInfo, InterfaceStateMachine
+from atdecc.util import *
 
 class TestAdvertisingInterfaceStateMachine:
     def test_departing(self):

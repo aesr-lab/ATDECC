@@ -1,5 +1,5 @@
 variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+#  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   DISTRO: unstable
   GIT_SUBMODULE_STRATEGY: recursive
 
@@ -29,7 +29,7 @@ build_python:
   stage: build
   extends: .python
   script:
-    - make -j$(nproc) -C src/atdecc_py
+    - make -j$(nproc) -C src/atdecc
   artifacts:
     paths:
       - src/
@@ -51,7 +51,7 @@ test_python:
   dependencies:
     - build_python
   variables:
-    LD_LIBRARY_PATH: $CI_PROJECT_DIR/src
+    LD_LIBRARY_PATH: $CI_PROJECT_DIR/src/atdecc
   script:
     - pytest
 

@@ -1,2 +1,2 @@
-include src/atdecc_py/atdecc_api_mod.*
+include src/atdecc/atdecc_api_mod.*
 

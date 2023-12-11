@@ -2,8 +2,6 @@
 
 import ctypes
 import struct
-import atdecc_api as av
-from atdecc_api import ATDECC_create, ATDECC_destroy, ATDECC_send
 import time
 import logging
 from threading import Thread, Event
@@ -15,10 +13,14 @@ import traceback
 import pdb
 
 
-from pdu import *
-from pdu_print import *
-from aem import *
-from adp import *
+import .atdecc_api as av
+from .atdecc_api import ATDECC_create, ATDECC_destroy, ATDECC_send
+
+from .pdu import *
+from .pdu_print import *
+from .aem import *
+from .adp import *
+
 
 class jdksInterface:
     handles = {}

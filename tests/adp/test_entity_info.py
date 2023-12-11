@@ -1,6 +1,6 @@
 import pytest
 
-from adp import EntityInfo
+from atdecc.adp import EntityInfo
 
 VALID_TIME_MIN = 2
 VALID_TIME_MAX = 62

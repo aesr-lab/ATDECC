@@ -2,10 +2,10 @@ import pytest
 import yaml
 from unittest.mock import patch, Mock
 
-import atdecc_api as at
-from util import *
-from aem import AEMDescriptorFactory
-from adp import EntityInfo
+import atdecc.atdecc_api as at
+from atdecc.util import *
+from atdecc.aem import AEMDescriptorFactory
+from atdecc.adp import EntityInfo
 
 class TestAEMDescriptors:
     def config(self):

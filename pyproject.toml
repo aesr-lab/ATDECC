@@ -1,5 +1,5 @@
 [project]
-name = "atdecc_py"
+name = "atdecc"
 version = "0.1-0"
 authors = [
   { name="Julian Rubisch", email="julian.rubisch@hey.com" },

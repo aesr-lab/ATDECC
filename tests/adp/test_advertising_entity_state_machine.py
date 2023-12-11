@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, Mock
 
-from adp import EntityInfo, AdvertisingEntityStateMachine
+from atdecc.adp import EntityInfo, AdvertisingEntityStateMachine
 from atdecc import InterfaceStateMachine
 
 class TestAdvertisingEntityStateMachine:

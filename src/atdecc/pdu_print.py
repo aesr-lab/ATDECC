@@ -1,4 +1,4 @@
-from util import *
+from .util import *
 
 def adpdu_header_str(hdr):
     return "cd={:x} subtype={:x} sv={:x} version={:x} message_type={} " \

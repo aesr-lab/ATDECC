@@ -1,8 +1,8 @@
-import atdecc_api as at
 import struct
 
-from util import *
-from pdu import *
+import ..atdecc_api as at
+from ..util import *
+from ..pdu import *
 
 
 # treat this as an "external lib" that doesn't change

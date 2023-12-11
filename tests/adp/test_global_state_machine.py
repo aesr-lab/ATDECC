@@ -1,7 +1,7 @@
 import pytest
 import time
 
-from adp import GlobalStateMachine
+from atdecc.adp import GlobalStateMachine
 
 class TestGlobalStateMachine:
 
