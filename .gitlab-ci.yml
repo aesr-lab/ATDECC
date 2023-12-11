@@ -9,13 +9,13 @@ variables:
 #    - venv/
 
 stages:
+  - prepare
   - build
   - test
   - deploy
 
 
 .python:
-  stage: build
   before_script:
     - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev python3-venv python3-dev -yy
     - python3 -m venv venv
@@ -26,7 +26,7 @@ stages:
 #    - merge_requests
 
 build_python:
-  stage: build
+  stage: prepare
   extends: .python
   script:
     - make -j$(nproc) -C src/atdecc
