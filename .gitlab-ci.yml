@@ -70,10 +70,11 @@ build_python_arm64:
     - .build_python
     - .build_arm64
 
-build_python_armhf:
+..build_python_armhf:
   extends:
     - .build_python
     - .build_armhf
+
 
 .build_wheel:
   stage: build
@@ -98,7 +99,7 @@ build_wheel_arm64:
   dependencies:
     - build_python_arm64
 
-build_wheel_armhf:
+..build_wheel_armhf:
   extends:
     - .build_wheel
     - .build_armhf
@@ -154,7 +155,7 @@ build_debian_arm64:
   dependencies:
     - build_python_arm64
 
-build_debian_armhf:
+..build_debian_armhf:
   extends:
     - .build_debian
     - .build_armhf
