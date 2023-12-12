@@ -112,7 +112,7 @@ test_python_x86_64:
     - .python
     - .build_x86_64
   dependencies:
-    - build_python_X86_64
+    - build_python_x86_64
   variables:
     LD_LIBRARY_PATH: $CI_PROJECT_DIR/src/atdecc
   script:
