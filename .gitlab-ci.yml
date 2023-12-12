@@ -16,6 +16,31 @@ stages:
   - deploy
 
 
+.build_x86_64:
+  variables:
+    ARCH: x86_64
+  tags:
+    - docker
+    - aesrl
+    - x86_64
+
+.build_arm64:
+  variables:
+    ARCH: arm64
+  tags:
+    - docker
+    - aesrl
+    - arm64
+
+.build_armhf:
+  variables:
+    ARCH: arm
+  tags:
+    - docker
+    - aesrl
+    - armhf
+
+
 .python:
   before_script:
     - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev python3-venv python3-dev -yy
@@ -26,7 +51,7 @@ stages:
 #  only:
 #    - merge_requests
 
-build_python:
+.build_python:
   stage: prepare
   extends: .python
   script:
@@ -35,31 +60,67 @@ build_python:
     paths:
       - src/
 
-build_wheel:
+build_python_x86_64:
+  extends:
+    - .build_python
+    - .build_x86_64
+
+build_python_arm64:
+  extends:
+    - .build_python
+    - .build_arm64
+
+build_python_armhf:
+  extends:
+    - .build_python
+    - .build_armhf
+
+.build_wheel:
   stage: build
   extends: .python
-  dependencies:
-    - build_python
   script:
     - python -m build
   artifacts:
     paths:
       - dist/
 
-test_python:
-  stage: test
-  extends: .python
+build_wheel_x86_64:
+  extends:
+    - .build_wheel
+    - .build_x86_64
   dependencies:
-    - build_python
+    - build_python_x86_64
+
+build_wheel_arm64:
+  extends:
+    - .build_wheel
+    - .build_arm64
+  dependencies:
+    - build_python_arm64
+
+build_wheel_armhf:
+  extends:
+    - .build_wheel
+    - .build_armhf
+  dependencies:
+    - build_python_armhf
+
+
+test_python_x86_64:
+  stage: test
+  extends:
+    - .python
+    - .build_x86_64
+  dependencies:
+    - build_python_X86_64
   variables:
     LD_LIBRARY_PATH: $CI_PROJECT_DIR/src/atdecc
   script:
     - pytest
 
+
 .build_debian:
   stage: debian
-  dependencies:
-    - build_python
   variables:
     LD_LIBRARY_PATH: $CI_PROJECT_DIR/src/atdecc
   before_script:
@@ -80,31 +141,25 @@ test_python:
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
 build_debian_x86_64:
-  extends: .build_debian
-  variables:
-    ARCH: x86_64
-  tags:
-    - docker
-    - aesrl
-    - x86_64
+  extends:
+    - .build_debian
+    - .build_x86_64
+  dependencies:
+    - build_python_x86_64
 
 build_debian_arm64:
-  extends: .build_debian
-  variables:
-    ARCH: arm64
-  tags:
-    - docker
-    - aesrl
-    - arm64
+  extends:
+    - .build_debian
+    - .build_arm64
+  dependencies:
+    - build_python_arm64
 
 build_debian_armhf:
-  extends: .build_debian
-  variables:
-    ARCH: arm
-  tags:
-    - docker
-    - aesrl
-    - armhf
+  extends:
+    - .build_debian
+    - .build_armhf
+  dependencies:
+    - build_python_armhf
 
 
 upload:
