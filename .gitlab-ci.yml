@@ -96,8 +96,7 @@ build_wheel_x86_64:
     - .build_x86_64
   dependencies:
     - build_python_x86_64
-  when:
-    on-success: build_python_x86_64
+  needs: ['build_python_x86_64']
 
 build_wheel_arm64:
   extends:
@@ -105,8 +104,7 @@ build_wheel_arm64:
     - .build_arm64
   dependencies:
     - build_python_arm64
-  when:
-    on-success: build_python_arm64
+  needs: ['build_python_arm64']
 
 build_wheel_armhf:
   extends:
@@ -114,8 +112,7 @@ build_wheel_armhf:
     - .build_armhf
   dependencies:
     - build_python_armhf
-  when:
-    on-success: build_python_armhf
+  needs: ['build_python_armhf']
 
 
 .build_debian:
@@ -145,8 +142,7 @@ build_debian_x86_64:
     - .build_x86_64
   dependencies:
     - build_python_x86_64
-  when:
-    on-success: build_python_x86_64
+  needs: ['build_python_x86_64']
 
 build_debian_arm64:
   extends:
@@ -154,8 +150,7 @@ build_debian_arm64:
     - .build_arm64
   dependencies:
     - build_python_arm64
-  when:
-    on-success: build_python_arm64
+  needs: ['build_python_arm64']
 
 build_debian_armhf:
   extends:
@@ -163,8 +158,7 @@ build_debian_armhf:
     - .build_armhf
   dependencies:
     - build_python_armhf
-  when:
-    on-success: build_python_armhf
+  needs: ['build_python_armhf']
 
 
 upload:
