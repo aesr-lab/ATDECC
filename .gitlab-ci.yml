@@ -46,9 +46,15 @@ stages:
   extends: .python
   script:
     - make -j$(nproc) -C src/atdecc
+  after_script:
+    - echo BUILD_STATUS="${CI_JOB_STATUS}" > $CI_PROJECT_DIR/status.env
   artifacts:
     paths:
       - src/
+    reports:
+      # environment variable BUILD_STATUS to be passed on to follow-up jobs
+      dotenv: status.env
+
 
 build_python_x86_64:
   extends:
@@ -84,6 +90,9 @@ test_python_x86_64:
 .build_wheel:
   stage: package
   extends: .python
+  rules:
+    # BUILD_STATUS inherited by dotenv feature
+    - if: $BUILD_STATUS == "success"
   script:
     - python -m build
   artifacts:
@@ -123,6 +132,9 @@ build_wheel_armhf:
 
 .build_debian:
   stage: package
+  rules:
+    # BUILD_STATUS inherited by dotenv feature
+    - if: $BUILD_STATUS == "success"
   variables:
     LD_LIBRARY_PATH: $CI_PROJECT_DIR/src/atdecc
   before_script:
