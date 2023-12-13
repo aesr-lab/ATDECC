@@ -107,7 +107,7 @@ test_python_arm64:
   extends: .python
   before_script:
     - test "$BUILD_STATUS" == "success" # TEST for build job success
-    - apt-get update -qq && apt-get install python3-build -yy
+    - apt-get update -qq && apt-get install python3-venv python3-build -yy
   allow_failure: true
   script:
     - python3 -m build
