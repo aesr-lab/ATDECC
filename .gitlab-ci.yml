@@ -3,7 +3,6 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
 stages:
-  - prepare
   - build
   - test
   - package
@@ -43,7 +42,7 @@ stages:
     - pip install -r requirements.txt
 
 .build_python:
-  stage: prepare
+  stage: build
   extends: .python
   script:
     - make -j$(nproc) -C src/atdecc
@@ -62,7 +61,7 @@ build_python_arm64:
     - .build_arm64
 
 build_python_armhf:
-  # currently, armhf build is known to segfault
+  # currently, the armhf build is known to segfault
   allow_failure: true
   extends:
     - .build_python
@@ -97,6 +96,8 @@ build_wheel_x86_64:
     - .build_x86_64
   dependencies:
     - build_python_x86_64
+  when:
+    on-success: build_python_x86_64
 
 build_wheel_arm64:
   extends:
@@ -104,15 +105,17 @@ build_wheel_arm64:
     - .build_arm64
   dependencies:
     - build_python_arm64
+  when:
+    on-success: build_python_arm64
 
 build_wheel_armhf:
-  # currently, armhf build is known to segfault
-  allow_failure: true
   extends:
     - .build_wheel
     - .build_armhf
   dependencies:
     - build_python_armhf
+  when:
+    on-success: build_python_armhf
 
 
 .build_debian:
@@ -142,6 +145,8 @@ build_debian_x86_64:
     - .build_x86_64
   dependencies:
     - build_python_x86_64
+  when:
+    on-success: build_python_x86_64
 
 build_debian_arm64:
   extends:
@@ -149,15 +154,17 @@ build_debian_arm64:
     - .build_arm64
   dependencies:
     - build_python_arm64
+  when:
+    on-success: build_python_arm64
 
 build_debian_armhf:
-  # currently, armhf build is known to segfault
-  allow_failure: true
   extends:
     - .build_debian
     - .build_armhf
   dependencies:
     - build_python_armhf
+  when:
+    on-success: build_python_armhf
 
 
 upload:
