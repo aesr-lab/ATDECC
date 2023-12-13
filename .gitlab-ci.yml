@@ -74,17 +74,32 @@ build_python_armhf:
     - .build_armhf
 
 
-test_python_x86_64:
+.test_python:
   stage: test
   extends:
     - .python
-    - .build_x86_64
-  dependencies:
-    - build_python_x86_64
   variables:
     LD_LIBRARY_PATH: $CI_PROJECT_DIR/src/atdecc
   script:
     - pytest
+
+test_python_x86_64:
+  extends:
+    - .test_python
+    - .build_x86_64
+  needs:
+    - build_python_x86_64
+  dependencies:
+    - build_python_x86_64
+
+test_python_arm64:
+  extends:
+    - .test_python
+    - .build_arm64
+  needs:
+    - build_python_arm64
+  dependencies:
+    - build_python_arm64
 
 
 .build_wheel:
@@ -92,10 +107,10 @@ test_python_x86_64:
   extends: .python
   before_script:
     - test "$BUILD_STATUS" == "success" # TEST for build job success
-    - apt-get update -qq && apt-get install python3 python3-build -yy
+    - apt-get update -qq && apt-get install python3-build -yy
   allow_failure: true
   script:
-    - python -m build
+    - python3 -m build
   artifacts:
     paths:
       - dist/
