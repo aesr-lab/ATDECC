@@ -90,9 +90,9 @@ test_python_x86_64:
 .build_wheel:
   stage: package
   extends: .python
-  rules:
-    # BUILD_STATUS inherited by dotenv feature
-    - if: $BUILD_STATUS == "success"
+  before_script:
+    - test "$BUILD_STATUS" == "success" # TEST for build job success
+  allow_failure: true
   script:
     - python -m build
   artifacts:
@@ -107,7 +107,6 @@ build_wheel_x86_64:
     - build_python_x86_64
   dependencies:
     - build_python_x86_64
-  when: on_success
 
 build_wheel_arm64:
   extends:
@@ -117,7 +116,6 @@ build_wheel_arm64:
     - build_python_arm64
   dependencies:
     - build_python_arm64
-  when: on_success
 
 build_wheel_armhf:
   extends:
@@ -127,18 +125,16 @@ build_wheel_armhf:
     - build_python_armhf
   dependencies:
     - build_python_armhf
-  when: on_success
 
 
 .build_debian:
   stage: package
-  rules:
-    # BUILD_STATUS inherited by dotenv feature
-    - if: $BUILD_STATUS == "success"
   variables:
     LD_LIBRARY_PATH: $CI_PROJECT_DIR/src/atdecc
   before_script:
+    - test "$BUILD_STATUS" == "success" # TEST for build job success
     - apt-get update -qq && apt-get install git devscripts equivs python3-venv python3-dev -yy
+  allow_failure: true
   script:
     - make builddeps
     - make -j$(nproc) debpkg
