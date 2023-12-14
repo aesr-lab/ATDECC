@@ -2,12 +2,12 @@ import pytest
 from unittest.mock import patch, Mock
 import time
 
-from adp import EntityInfo
-from acmp import ACMPListenerStateMachine
-from acmp.struct import *
+from atdecc.adp import EntityInfo
+from atdecc.acmp import ACMPListenerStateMachine
+from atdecc.acmp.struct import *
 from atdecc import Interface, jdksInterface
-import atdecc_api as at
-from util import *
+import atdecc.atdecc_api as at
+from atdecc.util import *
 
 class TestACMPListenerStateMachine:
 
