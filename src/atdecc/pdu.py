@@ -7,6 +7,10 @@ def jdksavdecc_eui64_set(v, base, pos: int) -> int:
     base[pos:pos+8] = v.value
     return pos+8
 
+def jdksavdecc_eui48_set(v, base, pos: int) -> int:
+    base[pos:pos+6] = v.value
+    return pos+6
+
 def jdksavdecc_uint64_set(v, base, pos: int) -> int:
     struct.pack_into('!Q', base, pos, v)
     return pos+8
@@ -76,6 +80,19 @@ def jdksavdecc_aecpdu_common_control_header_write( p: at.struct_jdksavdecc_aecpd
         jdksavdecc_common_control_header_set_stream_id( p.target_entity_id, base, pos )
     return r
 
+def jdksavdecc_acmpdu_common_control_header_write( p: at.struct_jdksavdecc_acmpdu_common_control_header,
+                                                   base, pos: int, ln: int ) -> int:
+    r = jdksavdecc_validate_range( pos, ln, at.JDKSAVDECC_COMMON_CONTROL_HEADER_LEN )
+    if r >= 0:
+        jdksavdecc_subtype_data_set_cd( p.cd, base, pos )
+        jdksavdecc_common_control_header_set_subtype( p.subtype, base, pos )
+        jdksavdecc_subtype_data_set_sv( p.sv, base, pos )
+        jdksavdecc_subtype_data_set_version( p.version, base, pos )
+        jdksavdecc_avtp_subtype_data_set_control_data( p.message_type, base, pos )
+        jdksavdecc_subtype_data_set_status( p.status, base, pos )
+        jdksavdecc_subtype_data_set_control_data_length( p.control_data_length, base, pos )
+        jdksavdecc_common_control_header_set_stream_id( p.stream_id, base, pos )
+    return r
 
 def jdksavdecc_adpdu_write( p: at.struct_jdksavdecc_adpdu , 
                             base, pos: int, ln: int ) -> int:
@@ -205,3 +222,41 @@ def aecp_form_msg( du, #at.struct_jdksavdecc_aecpdu_common or at.struct_jdksavde
         frame.length += len(command_payload)
 
     return frame
+
+def jdksavdecc_acmpdu_write( p: at.struct_jdksavdecc_acmpdu , 
+                            base, pos: int, ln: int ) -> int:
+    r = jdksavdecc_validate_range( pos, ln, at.JDKSAVDECC_ACMPDU_LEN )
+    if r >= 0:
+        jdksavdecc_acmpdu_common_control_header_write( p.header, base, pos, ln )
+        jdksavdecc_eui64_set( p.controller_entity_id, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_CONTROLLER_ENTITY_ID )
+        jdksavdecc_eui64_set( p.talker_entity_id, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_TALKER_ENTITY_ID )
+        jdksavdecc_eui64_set( p.listener_entity_id, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_LISTENER_ENTITY_ID )
+        jdksavdecc_uint16_set( p.talker_unique_id, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_TALKER_UNIQUE_ID)
+        jdksavdecc_uint16_set( p.listener_unique_id, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_LISTENER_UNIQUE_ID)
+        jdksavdecc_eui48_set( p.stream_dest_mac, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_STREAM_DEST_MAC)
+        jdksavdecc_uint16_set( p.connection_count, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_CONNECTION_COUNT)
+        jdksavdecc_uint16_set( p.sequence_id, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_SEQUENCE_ID)
+        jdksavdecc_uint16_set( p.flags, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_FLAGS)
+        jdksavdecc_uint16_set( p.stream_vlan_id, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_STREAM_VLAN_ID)
+        jdksavdecc_uint16_set( p.reserved, base, pos + at.JDKSAVDECC_ACMPDU_OFFSET_RESERVED)
+
+    return r
+
+def acmp_form_msg( acmpdu: at.struct_jdksavdecc_acmpdu,
+                   message_type: at.uint16_t,
+                   stream_id: at.struct_jdksavdecc_eui64,
+                   status: at.uint16_t = at.JDKSAVDECC_ACMP_STATUS_SUCCESS
+                   ) -> at.struct_jdksavdecc_frame:
+    acmpdu.header.cd = 1
+    acmpdu.header.subtype = at.JDKSAVDECC_SUBTYPE_ACMP
+    acmpdu.header.sv = 0
+    acmpdu.header.version = 0
+    acmpdu.header.message_type = message_type
+    acmpdu.header.status = status
+    # set to 84 for this version
+    acmpdu.header.control_data_length = 84
+    frame = at.struct_jdksavdecc_frame(
+        ethertype = at.JDKSAVDECC_AVTP_ETHERTYPE,
+        dest_address = uint64_to_eui48(at.JDKSAVDECC_MULTICAST_ADP_ACMP_MAC),
+    )
+    frame.length = jdksavdecc_acmpdu_write( acmpdu, frame.payload, 0, len(frame.payload) )
