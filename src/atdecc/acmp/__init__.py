@@ -1,14 +1,14 @@
-import atdecc_api as at
-from adp import GlobalStateMachine
-from acmp.struct import *
-from util import *
-from pdu_print import *
-
 from threading import Thread, Event
 from queue import Queue, Empty
 import copy
 import logging
 import traceback
+
+from . import atdecc_api as at
+from .adp import GlobalStateMachine
+from .acmp.struct import *
+from .util import *
+from .pdu_print import *
 
 timeout_values = {
     at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND: at.JDKSAVDECC_ACMP_TIMEOUT_CONNECT_TX_COMMAND_MS,
