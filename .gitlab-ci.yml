@@ -145,8 +145,6 @@ build_wheel_armhf:
 
 .build_debian:
   stage: package
-  variables:
-    LD_LIBRARY_PATH: $CI_PROJECT_DIR/src/atdecc
   before_script:
     - test "$BUILD_STATUS" == "success" # TEST for build job success
     - apt-get update -qq && apt-get install git devscripts equivs python3-venv python3-dev -yy

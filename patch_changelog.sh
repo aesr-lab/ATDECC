@@ -24,7 +24,7 @@ fi
 VERSION="$ver_norev-$rev" 
 
 if [ -z "$DATE" ]; then
-        DATE=$(LANG= date +"%a, %d %b %Y %H:%I:%S %z")
+        DATE=$(LANG= date -R)
 fi
 
 VERSION="$VERSION" DATE="$DATE" envsubst <"$1" >"$2"
