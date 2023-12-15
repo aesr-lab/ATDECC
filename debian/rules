@@ -1,0 +1,30 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+
+#PKGDIR=debian/tmp
+
+#%:
+#	dh $@
+
+export PYBUILD_NAME=atdecc-py
+export PYBUILD_SYSTEM=pyproject
+export PYBUILD_DISABLE=test
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_installinit:
+	dh_installsystemd --name=atdecc-py
+
+# don't enable or start	
+#	dh_systemd_enable -pelak-spl-master-ptp --name=elak-spl-master-ptp elak_spl_master_ptp.service
+#	dh_systemd_start -pelak-spl-master-ptp --no-restart-on-upgrade
+
+#override_dh_systemd_start:
+#	echo "Not running dh_systemd_start"
+
+#override_dh_builddeb:
+#	dh_builddeb -a --destdir=/tmp/
+

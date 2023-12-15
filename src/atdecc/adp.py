@@ -5,10 +5,10 @@ import copy
 from threading import Thread, Event
 from queue import Queue, Empty
 
-from pdu import *
-from pdu_print import *
-from aem import *
-from util import *
+from .pdu import *
+from .pdu_print import *
+from .aem import *
+from .util import *
 
 class EntityInfo:
     """

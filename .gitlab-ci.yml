@@ -1,49 +1,210 @@
-image: python:3.9
-
 variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-
-cache:
-  paths:
-    - .cache/pip
-    - venv/
+  DISTRO: unstable
+  GIT_SUBMODULE_STRATEGY: recursive
 
 stages:
   - build
   - test
+  - package
+  - deploy
 
-before_script:
-  - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev -yy
-  - python -V
-  - cp .gitmodules.gitlab .gitmodules
-  - git submodule update --init --recursive
-  - pip install virtualenv
-  - virtualenv venv
-  - source venv/bin/activate
-  - pip install -r requirements.txt
-  - pip freeze > requirements.txt
 
-build:
-  stage: build
+.build_x86_64:
+  variables:
+    ARCH: x86_64
   tags:
     - docker
+    - aesrl
+    - x86_64
+
+.build_arm64:
+  variables:
+    ARCH: arm64
+  tags:
+    - docker
+    - aesrl
+    - arm64
+
+.build_armhf:
+  variables:
+    ARCH: arm
+  tags:
+    - docker
+    - aesrl
+    - armhf
+
+
+.python:
+  before_script:
+    - apt-get update -qq && apt-get install cmake build-essential libclang1-15 libclang-dev libpcap-dev python3-venv python3-dev -yy
+    - python3 -m venv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+
+.build_python:
+  stage: build
+  extends: .python
   script:
-    - make
+    - make -j$(nproc) -C src/atdecc
+  after_script:
+    - echo BUILD_STATUS="${CI_JOB_STATUS}" > $CI_PROJECT_DIR/status.env
   artifacts:
     paths:
       - src/
-  only:
-    - merge_requests
+    reports:
+      # environment variable BUILD_STATUS to be passed on to follow-up jobs
+      dotenv: status.env
 
-tests:
+
+build_python_x86_64:
+  extends:
+    - .build_python
+    - .build_x86_64
+
+build_python_arm64:
+  extends:
+    - .build_python
+    - .build_arm64
+
+build_python_armhf:
+  # currently, the armhf build is known to segfault
+  allow_failure: true
+  extends:
+    - .build_python
+    - .build_armhf
+
+
+.test_python:
   stage: test
-  dependencies:
-    - build
+  extends:
+    - .python
   variables:
-    LD_LIBRARY_PATH: $CI_PROJECT_DIR/src
-  tags:
-    - docker
+    LD_LIBRARY_PATH: $CI_PROJECT_DIR/src/atdecc
   script:
     - pytest
-  only:
-    - merge_requests
+
+test_python_x86_64:
+  extends:
+    - .test_python
+    - .build_x86_64
+  needs:
+    - build_python_x86_64
+  dependencies:
+    - build_python_x86_64
+
+test_python_arm64:
+  extends:
+    - .test_python
+    - .build_arm64
+  needs:
+    - build_python_arm64
+  dependencies:
+    - build_python_arm64
+
+
+.build_wheel:
+  stage: package
+  extends: .python
+  before_script:
+    - test "$BUILD_STATUS" == "success" # TEST for build job success
+    - apt-get update -qq && apt-get install python3-venv python3-build -yy
+  allow_failure: true
+  script:
+    - python3 -m build
+  artifacts:
+    paths:
+      - dist/
+
+build_wheel_x86_64:
+  extends:
+    - .build_wheel
+    - .build_x86_64
+  needs:
+    - build_python_x86_64
+  dependencies:
+    - build_python_x86_64
+
+build_wheel_arm64:
+  extends:
+    - .build_wheel
+    - .build_arm64
+  needs:
+    - build_python_arm64
+  dependencies:
+    - build_python_arm64
+
+build_wheel_armhf:
+  extends:
+    - .build_wheel
+    - .build_armhf
+  needs:
+    - build_python_armhf
+  dependencies:
+    - build_python_armhf
+
+
+.build_debian:
+  stage: package
+  before_script:
+    - test "$BUILD_STATUS" == "success" # TEST for build job success
+    - apt-get update -qq && apt-get install git devscripts equivs python3-venv python3-dev -yy
+  allow_failure: true
+  script:
+    - make builddeps
+    - make -j$(nproc) debpkg
+  after_script:
+    - mv ../atdecc-py_* .
+  artifacts:
+    paths:
+      - ./${CI_PROJECT_NAME}*.deb
+    expire_in: 1h
+
+.build_debian_scheduled:
+  extends: .build_debian
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+build_debian_x86_64:
+  extends:
+    - .build_debian
+    - .build_x86_64
+  needs:
+    - build_python_x86_64
+  dependencies:
+    - build_python_x86_64
+  when: on_success
+
+build_debian_arm64:
+  extends:
+    - .build_debian
+    - .build_arm64
+  needs:
+    - build_python_arm64
+  dependencies:
+    - build_python_arm64
+  when: on_success
+
+build_debian_armhf:
+  extends:
+    - .build_debian
+    - .build_armhf
+  needs:
+    - build_python_armhf
+  dependencies:
+    - build_python_armhf
+  when: on_success
+
+
+upload:
+  stage: deploy
+  tags:
+    - docker
+    - aesrl-website
+  before_script:
+    - apt-get update -qq
+    - apt-get install lftp curl -yy
+  script:
+    # upload the debian repository incomings
+    - ./upload.sh debian/incoming/$DISTRO
+    # trigger debian repository update
+    - curl --fail --request POST --form token=$DEBIAN_TRIGGER_TOKEN --form ref=main "https://gitlab.mdw.ac.at/api/v4/projects/$DEBIAN_PROJECT_ID/trigger/pipeline"

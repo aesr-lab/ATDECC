@@ -1,7 +1,7 @@
-import atdecc_api as at
 from inspect import signature
 
-from aem.descriptors import *
+from .. import atdecc_api as at
+from ..aem.descriptors import *
 
 
 class AEM:

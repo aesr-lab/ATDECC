@@ -37,7 +37,7 @@ This setup can also serve as a blueprint for the setup of the final production i
 
 # BeagleBone/Bela
 
-The following steps are necesssary to compile the daemon on BeagleBone Black/Bela:
+The following steps are necessary to compile the daemon on BeagleBone Black/Bela:
 
 ```
 $ sudo apt-get install cmake build-essential python3-venv clang libclang-dev libpcap-dev

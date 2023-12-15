@@ -1,4 +1,4 @@
-from util import *
+from .util import *
 
 def jdksavdecc_validate_range(bufpos: int, buflen: int, elem_size: int) -> int:
     return bufpos+elem_size if bufpos+elem_size <= buflen else -1

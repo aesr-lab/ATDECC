@@ -2,24 +2,26 @@
 
 import ctypes
 import struct
-import atdecc_api as av
-from atdecc_api import ATDECC_create, ATDECC_destroy, ATDECC_send
 import time
 import logging
 from threading import Thread, Event
 from queue import Queue, Empty
 import copy
 import random
-import yaml
 import traceback
 import pdb
 
+import yaml
 
-from pdu import *
-from pdu_print import *
-from aem import *
-from adp import *
-from acmp import *
+
+from . import atdecc_api as av
+from .atdecc_api import ATDECC_create, ATDECC_destroy, ATDECC_send
+
+from .pdu import *
+from .pdu_print import *
+from .aem import *
+from .adp import *
+from .acmp import *
 
 class jdksInterface:
     handles = {}

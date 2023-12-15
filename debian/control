@@ -1,0 +1,29 @@
+Source: atdecc-py
+Maintainer: Thomas Grill <grill@mdw.ac.at>
+Homepage: http://aesr-lab.at
+Section: admin
+Priority: extra
+Standards-Version: 3.9.5
+Build-Depends: 
+	debhelper (>= 11),
+	dh-python,
+	build-essential,
+	libpcap-dev,
+	gettext-base,
+	python3,
+	python3-netifaces,
+	python3-yaml,
+	python3-setuptools,
+	pybuild-plugin-pyproject
+
+Package: atdecc-py
+Architecture: any
+Depends:
+	python3,
+	python3-netifaces,
+	python3-yaml,
+	libpcap0.8,
+	bash,
+	avahi-daemon,
+	${misc:Depends}
+Description: Python-based ATDECC controller

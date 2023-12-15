@@ -1,0 +1,6 @@
+atdecc-py ($VERSION) UNRELEASED; urgency=low
+
+  * Initial release.
+
+ -- Thomas Grill <grill@mdw.ac.at>  $DATE
+ 

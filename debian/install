@@ -1,0 +1,3 @@
+#! /bin/bash
+
+echo 'src/*.service /etc/systemd/system/'

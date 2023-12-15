@@ -1,4 +1,4 @@
-/ .*
+.*
 *.log
 *.so
 *.dylib
@@ -14,3 +14,13 @@ __pycache__
 !.gitlab-ci.yml
 !.gitmodules.gitlab
 *#*#
+
+*.deb
+*.dsc
+*.buildinfo
+*.changes
+*.substvars
+*.tar.gz
+
+*.egg-info
+dist

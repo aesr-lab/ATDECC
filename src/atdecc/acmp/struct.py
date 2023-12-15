@@ -1,5 +1,6 @@
-import atdecc_api as at
 import ctypes
+
+from .. import atdecc_api as at
 
 class struct_acmp_listener_stream_info(at.Structure):
     pass
