@@ -1,5 +1,4 @@
 variables:
-  DISTRO: unstable
   GIT_SUBMODULE_STRATEGY: recursive
 
 stages:
@@ -195,8 +194,19 @@ build_debian_armhf:
   when: on_success
 
 
+.distro:
+  variables:
+    DISTRO: "experimental"
+  rules:
+    - if: $CI_COMMIT_TAG
+      variables:
+        DISTRO: "unstable"
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+
+
 upload:
   stage: deploy
+  extends: .distro
   tags:
     - docker
     - aesrl-website

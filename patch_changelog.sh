@@ -10,10 +10,10 @@ fi
 
 ver_norev=${VERSION%-*}
 
-if [ -z "$CI_JOB_ID" ]; then
+if [ -z "$CI_PIPELINE_IID" ]; then
 	rev=${VERSION##*-}
 else
-	rev="$CI_JOB_ID"
+	rev="$CI_PIPELINE_IID"
 fi
 
 if [ -z "$ver_norev" ] || [ -z "$rev" ]; then
