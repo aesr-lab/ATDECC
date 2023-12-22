@@ -68,6 +68,8 @@ class jdksInterface:
 
     def send_acmp(self, pdu, message_type, status):
         frame = acmp_form_msg(pdu, message_type, status)
+        # if frame.payload:
+        #     logging.debug("frame payload: %s", bytes(frame.payload).hex())
         res = ATDECC_send(self.handle, frame)
 
     def register_adp_cb(self, cb):

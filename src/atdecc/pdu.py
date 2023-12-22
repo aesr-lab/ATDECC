@@ -260,3 +260,5 @@ def acmp_form_msg( acmpdu: at.struct_jdksavdecc_acmpdu,
         dest_address = uint64_to_eui48(at.JDKSAVDECC_MULTICAST_ADP_ACMP_MAC),
     )
     frame.length = jdksavdecc_acmpdu_write( acmpdu, frame.payload, 0, len(frame.payload) )
+
+    return frame
