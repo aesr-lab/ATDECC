@@ -38,6 +38,7 @@ class ACMPListenerStateMachine(
         
         self.my_id = entity_info.entity_id
         self.inflight = []
+        self.retried = []
         self.listenerStreamInfos = {}
         self.rcvdConnectRXCmd = False
         self.rcvdDisconnectRXCmd = False
@@ -54,6 +55,18 @@ class ACMPListenerStateMachine(
         if eui64_to_uint64(acmpdu.listener_entity_id) == self.my_id:
             logging.info("ACMP: %s", acmpdu_str(acmpdu))
             self.rcvdCmdResp.put(copy.deepcopy(acmpdu)) # copy structure (will probably be overwritten)
+
+            if(acmpdu.header.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_COMMAND):
+                self.rcvdConnectRXCmd = True
+            elif(acmpdu.header.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_COMMAND):
+                self.rcvdDisconnectRXCmd = True
+            elif(acmpdu.header.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_RESPONSE):
+                self.rcvdConnectTXResp = True
+            elif(acmpdu.header.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_RESPONSE):
+                self.rcvdDisconnectTXResp = True
+            elif(acmpdu.header.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_GET_RX_STATE_COMMAND):
+                self.rcvdGetRXState = True
+            
             self.event.set()
 
     def validListenerUnique(self, ListenerUniqueId):
@@ -69,7 +82,7 @@ class ACMPListenerStateMachine(
         ATDECC Listener is already connected to or attempting to connect to a 
         stream source other than the one specified by the talker_entity_id and talker_unique_id in the command.
         
-        This function returns TRUE if either connected is TRUE or pending_connections is TRUE 
+        This function returns TRUE if either connected is TRUE or pending_connection is TRUE 
         and talker_entity_id and talker_unique_id in the command does not matches 
         talker_entity_id and talker_unique_id in the listenerStreamInfos entry otherwise it returns FALSE.
 
@@ -87,7 +100,7 @@ class ACMPListenerStateMachine(
             return (
                 (eui64_to_uint64(streamInfo.talker_entity_id) != eui64_to_uint64(command.talker_entity_id) and 
                 streamInfo.talker_unique_id != command.talker_unique_id) and
-                (streamInfo.connected or streamInfo.pending_connections)
+                (streamInfo.connected or streamInfo.pending_connection)
             )
         except KeyError:
             return False
@@ -328,9 +341,105 @@ class ACMPListenerStateMachine(
             item.command.listener_unique_id == commandResponse.listener_unique_id
         )), None)
 
+    def _handleConnectTxTimeout(self, infl):
+        if infl.retried:
+            response = infl.command
+            response.sequence_id = infl.original_sequence_id
+            listenerInfo = self.listenerStreamInfos[self.rcvdCmdResp.listener_unique_id]
+            listenerInfo.pending_connection = False
+            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, response, at.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
+        else:
+            # Retry
+            self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, infl.command, True)
+            # this happens instead of self.removeInflight, apparently
+            infl.retried = True
+            self.retried.append(infl)
+
+    def _handleDisconnectTxTimeout(self, infl):
+        if infl.retried:
+            response = infl.command
+            response.sequence_id = infl.original_sequence_id
+            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, at.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
+        else:
+            self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, infl.command, True)
+            # this happens instead of self.removeInflight, apparently
+            infl.retried = True
+            self.retried.append(infl)
+
+    def _handleConnectRxCommand(self, command):
+        if self.validListenerUnique(command.listener_unique_id):
+            if self.listenerIsAcquiredOrLockedByOther(command):
+                self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, command, at.JDKSAVDECC_ACMP_STATUS_CONTROLLER_NOT_AUTHORIZED)
+            elif self.listenerIsConnected(command):
+                self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, command, at.JDKSAVDECC_ACMP_STATUS_LISTENER_EXCLUSIVE)
+            else:
+                if self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, command, False):
+                    listenerInfo = self.listenerStreamInfos[command.listener_unique_id]
+                    listenerInfo.talker_entity_id = command.talker_entity_id
+                    listenerInfo.talker_unique_id = command.talker_unique_id
+                    listenerInfo.pending_connection = True
+        else:
+            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, command, at.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
+
+        self.rcvdConnectRXCmd = False
+
+    def _handleConnectTxResponse(self, command):
+        if self.validListenerUnique(command.listener_unique_id):
+            if command.header.status == at.JDKSAVDECC_ACMP_STATUS_SUCCESS:
+                response, status = self.connectListener(command)
+            else:
+                response, status = (command, command.header.status)
+            
+            listenerInfo = self.listenerStreamInfos[command.listener_unique_id]
+            listenerInfo.pending_connection = False
+        
+            # response.sequence_id = inflight[x].original_sequence_id # ????
+            self.cancelTimeout(command)
+            self.removeInflight(command)
+            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, response, status)
+        
+        self.rcvdConnectTXResp = False
+
+    def _handleGetRxState(self, command):
+        if self.validListenerUnique(command.listener_unique_id):
+            response, error = self.getState(command)
+        else:
+            response, error = (command, at.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
+        
+        self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_GET_RX_STATE_RESPONSE, response, error)
+
+        self.rcvdGetRXState = False
+
+    def _handleDisconnectRxCommand(self, command):
+        if self.validListenerUnique(command.listener_unique_id):
+            if self.listenerIsConnectedTo(command):
+                response, status = self.disconnectListener(command)
+                if status == at.JDKSAVDECC_ACMP_STATUS_SUCCESS:
+                    self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, command, False)
+                else:
+                    self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, status)
+            else:
+                self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, command, at.JDKSAVDECC_ACMP_STATUS_NOT_CONNECTED)
+        else:
+            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, command, at.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
+
+        self.rcvdDisconnectRXCmd = False
+
+    def _handleDisconnectTxResponse(self, command):
+        if self.validListenerUnique(command.listener_unique_id):
+            response, status = (command, command.header.status)
+
+            # response.sequence_id = inflight[x].original_sequence_id # ???
+            self.cancelTimeout(command)
+            self.removeInflight(command)
+            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, status)
+
+            self.rcvdDisconnectTXResp = False
+
+
     def run(self):
         logging.debug("ACMPListenerStateMachine: Starting thread")
-        
+
         for intf in self.interfaces:
             intf.register_acmp_cb(self.acmp_cb)
 
@@ -340,7 +449,7 @@ class ACMPListenerStateMachine(
             self.rcvdConnectTXResp = False
             self.rcvdDisconnectTXResp = False
             self.rcvdGetRXState = False
-            
+
             if self.rcvdCmdResp.empty():
                 self.event.wait(1)
                 # signalled
@@ -351,141 +460,62 @@ class ACMPListenerStateMachine(
                 
             try:
                 cmd = self.rcvdCmdResp.get_nowait()
-                # TODO we have to convert to struct_acmp_inflight_command ?
-                self.inflight.append(cmd)
             except Empty:
                 pass
             
             try:
                 # check timeouts
                 ct = self.currentTime
-                retried = []
+                self.retried = []
 
                 # self.inflight: list struct_jdksavdecc_acmpdu
 
                 if len(self.inflight):
-                    import pdb
-                    pdb.set_trace()
-                
                     while len(self.inflight) and ct >= self.inflight[0].timeout:
+                        # this happens instead of self.removeInflight, apparently
                         infl = self.inflight.pop(0)
-                        if infl.command.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND:
+                        if infl.command.header.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND:
                             # CONNECT TX TIMEOUT
-                            if infl.retried:
-                                response = infl.command
-                                response.sequence_id = infl.original_sequence_id
-                                listenerInfo = self.listenerStreamInfos[rcvdCmdResp.listener_unique_id]
-                                listenerInfo.pending_connection = False
-                                self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, response, at.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
-                            else:
-                                # Retry
-                                self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, infl.command, True)
-                                infl.retried = True
-                                retried.append(infl)
+                            self._handleConnectTxTimeout(infl)
                         
-                        elif infl.command.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND:
+                        elif infl.command.header.message_type == at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND:
                             # DISCONNECT TX TIMEOUT
-                            if infl.retried:
-                                response = infl.command
-                                response.sequence_id = infl.original_sequence_id
-                                self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, at.JDKSAVDECC_ACMP_STATUS_LISTENER_TALKER_TIMEOUT)
-                            else:
-                                self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, infl.command, True)
-                                infl.retried = True
-                                retried.append(infl)
+                            self._handleDisconnectTxTimeout(infl)
                         
                 # reinsert retries into inflights
-                for infl in retried[::-1]:
+                for infl in self.retried[::-1]:
                     self.inflight.insert(0, infl)
             
-                if self.rcvdConnectRXCmd:
+                if self.rcvdConnectRXCmd and eui64_to_uint64(cmd.listener_entity_id) == self.my_id:
                     # CONNECT RX COMMAND
                     logging.debug("Received Connect RX command")
 
-                    if self.validListenerUnique(self.rcvdCmdResp.listener_unique_id):
-                        if self.listenerIsAcquiredOrLockedByOther(self.rcvdCmdResp):
-                            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_CONTROLLER_NOT_AUTHORIZED)
-                        elif self.listenerIsConnected(self.rcvdCmdResp):
-                            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_LISTENER_EXCLUSIVE)
-                        else:
-                            if self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, self.rcvdCmdResp, False):
-                                listenerInfo = self.listenerStreamInfos[self.rcvdCmdResp.listener_unique_id]
-                                listenerInfo.talker_entity_id = self.rcvdCmdResp.talker_entity_id
-                                listenerInfo.talker_unique_id = self.rcvdCmdResp.talker_unique_id
-                                listenerInfo.pending_connection = True
-                    else:
-                        self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
+                    self._handleConnectRxCommand(cmd)
 
-                    self.rcvdConnectRXCmd = False
-
-                if self.rcvdConnectTXResp:
+                if self.rcvdConnectTXResp and eui64_to_uint64(cmd.listener_entity_id) == self.my_id:
                     # CONNECT TX RESPONSE
                     logging.debug("Received Connect TX response")
 
-                    if  self.validListenerUnique(self.rcvdCmdResp.listener_unique_id):
-                        if self.rcvdCmdResp.status == at.JDKSAVDECC_ACMP_STATUS_SUCCESS:
-                            response, status = self.connectListener(self.rcvdCmdResp)
-                        else:
-                            response, status = (self.rcvdCmdResp, self.rcvdCmdResp.status)
-                        
-                        listenerInfo = self.listenerStreamInfos[self.rcvdCmdResp.listener_unique_id]
-                        listenerInfo.pending_connection = False
-                    
-                        import pdb
-                        pdb.set_trace()
-                        response.sequence_id = inflight[x].original_sequence_id # ????
-                        self.cancelTimeout(self.rcvdCmdResp)
-                        self.removeInflight(rcvdCmdResp) # ????
-                        self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, response, status)
+                    self._handleConnectTxResponse(cmd)
 
-                    self.rcvdConnectTXResp = False
-
-                if self.rcvdGetRXState:
+                if self.rcvdGetRXState and eui64_to_uint64(cmd.listener_entity_id) == self.my_id:
                     # GET STATE
                     logging.debug("Received Get State")
 
-                    if self.validListenerUnique(self.rcvdCmdResp.listener_unique_id):
-                        response, error = self.getState(self.rcvdCmdResp)
-                    else:
-                        response, error = (self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
-                    
-                    self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_GET_RX_STATE_RESPONSE, response, error)
+                    self._handleGetRxState(cmd)
 
-                    self.rcvdGetRXState = False
-
-                if self.rcvdDisconnectRXCmd:
+                if self.rcvdDisconnectRXCmd and eui64_to_uint64(cmd.listener_entity_id) == self.my_id:
                     # DISCONNECT RX COMMAND
                     logging.debug("Received Disconnect RX command")
 
-                    if self.validListenerUnique(self.rcvdCmdResp.listener_unique_id):
-                        if self.listenerIsConnectedTo(self.rcvdCmdResp):
-                            response, status = self.disconnectListener(self.rcvdCmdResp)
-                            if status == at.JDKSAVDECC_ACMP_STATUS_SUCCESS:
-                                self.txCommand(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND, self.rcvdCmdResp, False)
-                            else:
-                                self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, status)
-                        else:
-                            self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_NOT_CONNECTED)
-                    else:
-                        self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, self.rcvdCmdResp, at.JDKSAVDECC_ACMP_STATUS_LISTENER_UNKNOWN_ID)
+                    self._handleDisconnectRxCommand(cmd)
 
-                    self.rcvdDisconnectRXCmd = False
-
-                if self.rcvdDisconnectTXResp:
-                    # CONNECT TX RESPONSE
+                if self.rcvdDisconnectTXResp and eui64_to_uint64(cmd.listener_entity_id) == self.my_id:
+                    # DISCONNECT TX RESPONSE
                     logging.debug("Received Disconnect TX response")
 
-                    if self.validListenerUnique(self.rcvdCmdResp.listener_unique_id):
-                        response, status = (self.rcvdCmdResp, self.rcvdCmdResp.status)
+                    self._handleDisconnectTxResponse(cmd)
 
-                        import pdb
-                        pdb.set_trace()
-                        response.sequence_id = inflight[x].original_sequence_id # ???
-                        self.cancelTimeout(self.rcvdCmdResp)
-                        self.removeInflight(self.rcvdCmdResp)  # ???
-                        self.txResponse(at.JDKSAVDECC_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, response, status)
-
-                    self.rcvdDisconnectTXResp = False
             except Exception as e:
                 traceback.print_exc()
 #                logging.error("Exception: %s", e)
