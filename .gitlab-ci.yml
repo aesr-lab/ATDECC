@@ -194,18 +194,8 @@ build_debian_armhf:
   when: on_success
 
 
-.distro:
-  rules:
-    - if: $CI_COMMIT_TAG != ""
-      variables:
-        DISTRO: "unstable"
-    - if: $CI_COMMIT_TAG == ""
-      variables:
-        DISTRO: "experimental"
-
 upload:
   stage: deploy
-  extends: .distro
   rules:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH  
   tags:
@@ -215,6 +205,7 @@ upload:
     - apt-get update -qq
     - apt-get install lftp curl -yy
   script:
+    - if [ -z "$CI_COMMIT_TAG" ]; then export DISTRO=experimental; else export DISTRO=unstable; fi
     # upload the debian repository incomings
     - ./upload.sh debian/incoming/$DISTRO
     # trigger debian repository update
