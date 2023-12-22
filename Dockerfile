@@ -13,9 +13,14 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN pip install -r requirements.txt
 RUN pip freeze > requirements.txt
+
+WORKDIR /atdecc/src/atdecc
+
 RUN make clean && make
+
+WORKDIR /atdecc
 
 COPY ./tests/fixtures/config.yml /etc/atdecc/config.yml
 
-ENV LD_LIBRARY_PATH=/atdecc/src
-CMD ["/atdecc/src/atdecc.py", "-d"]
+ENV LD_LIBRARY_PATH=/atdecc/src/atdecc
+CMD ["/atdecc/src/atdecc/atdecc.py", "-d"]
