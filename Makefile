@@ -1,6 +1,6 @@
 .PHONY: clean debpkg
 
-builddeps: debian/control
+builddeps: debian/control debian/changelog
 	# install packages listed in "Build-Depends:" section
 	echo "Y" | mk-build-deps -i "$<"
 	# check again
