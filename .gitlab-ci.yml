@@ -152,6 +152,7 @@ build_wheel_armhf:
     - make builddeps
     - make -j$(nproc) debpkg
   after_script:
+    - rm -f ../*-build-deps_*_all.deb
     - mv ../atdecc-py_* .
   artifacts:
     paths:
