@@ -197,8 +197,8 @@ build_debian_armhf:
 
 upload:
   stage: deploy
-  rules:
-    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH  
+#  rules:
+#    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH  
   tags:
     - docker
     - aesrl-website
