@@ -2,4 +2,3 @@
 
 echo 'src/*.service /etc/systemd/system/'
 echo 'src/*.sh /usr/lib/elak-spl/'
-echo 'src/*.conf /etc/elak-spl/'
