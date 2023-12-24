@@ -5,7 +5,10 @@ After=syslog.target network.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=
-ExecStop=
+ExecStart=/usr/lib/elak-spl/atdecc-py.sh start
+ExecStop=/usr/lib/elak-spl/atdecc-py.sh stop
 Restart=on-failure
 RestartSec=10
+
+[Install]
+WantedBy=network-online.target
