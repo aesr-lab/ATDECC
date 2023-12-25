@@ -2,11 +2,11 @@
 
 PIDFILE=/var/run/${0##*/}.pid
 
-#. /etc/elak-spl/atdecc-py.conf
+. /etc/elak-spl/atdecc-py.conf
 
 case "$1" in
 start)
-	python3 -m atdecc.atdecc -d &
+	python3 -m atdecc -i ${INTF} -c "${CONFIG}" &
 	echo $! > $PIDFILE
 	;;
 stop)
