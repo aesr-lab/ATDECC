@@ -6,7 +6,7 @@ PIDFILE=/var/run/${0##*/}.pid
 
 case "$1" in
 start)
-	atdecc-py -i ${INTF} -c "${CONFIG}" &
+	atdecc-py -i ${INTF} -c "${CONFIG}" ${OPTIONS} &
 	echo $! > $PIDFILE
 	;;
 stop)
