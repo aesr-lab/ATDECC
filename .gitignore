@@ -5,9 +5,12 @@
 *.o
 *.opp
 /venv
+__pycache__
+
 atdecc_api.*
 src/atdecc_mod.*
-__pycache__
+src/atdecc/include
+debian/changelog
 
 *~
 !.dockerignore
@@ -16,6 +19,7 @@ __pycache__
 *#*#
 
 *.deb
+*.whl
 *.dsc
 *.buildinfo
 *.changes
