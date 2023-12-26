@@ -18,5 +18,6 @@ RUN pip install -r requirements.txt
 RUN make clean && make -j$(nproc)
 # Install in developer mode
 RUN pip install -e .
+
 # Start daemon in debug mode
-RUN atdecc-py -d -c "$PWD"/tests/fixtures/config.yml
+CMD ["atdecc-py", "-d", "-c", "./tests/fixtures/config.yml" ]
