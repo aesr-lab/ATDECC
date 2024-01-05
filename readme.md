@@ -1,6 +1,6 @@
 # 1. Update Git Submodules
 
-`$ git submodule update --init --recursive`
+`git submodule update --init --recursive`
 
 # 2. Initialize Python virtual env
 
@@ -13,11 +13,33 @@ Activate Python virtual env:
 Install required packages into venv: 
 `pip install -r requirements.txt`
 
-Eventual changes in the virtual environment must be stored
-`pip freeze > requirements.txt`
+# 3. Build
 
-# 3. Build and Extract Python C-Bindings
+Build C-code and extract bindings for Python:
 `make`
+
+Build Python wheel:
+`python3 -m build`
+
+Build Debian package:
+`make debpkg`
+
+# 4. Install and run
+
+After installing the Python package with `pip`, the daemon can be run with `sudo atdecc-py` 
+(or equivalently `sudo python3 -m atdecc`).
+
+Check out `atdecc-py --help` for additional options like network interface and AEM config file. 
+
+# 5. Systemd service
+
+Install the debian package from the package registry with
+`apt install atdecc-py`.
+
+The service can then be installed and started with `systemctl enable atdecc-py --now`.
+
+Check the status with `systemctl status atdecc-py`.
+
 
 # Docker
 

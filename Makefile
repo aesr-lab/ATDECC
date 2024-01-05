@@ -1,4 +1,7 @@
-.PHONY: clean debpkg
+.PHONY: all clean debpkg
+
+all:
+	$(MAKE) -C src/atdecc
 
 builddeps: debian/control debian/changelog
 	# install packages listed in "Build-Depends:" section
@@ -13,5 +16,5 @@ debian/changelog: debian/changelog.in ./patch_changelog.sh
 	./patch_changelog.sh "$<" "$@"
 
 clean: debian/control debian/changelog
-	$(MAKE) -C src/atdecc_py clean
+	$(MAKE) -C src/atdecc clean
 #	dh clean
