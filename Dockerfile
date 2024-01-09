@@ -1,6 +1,7 @@
 FROM debian:latest
 
-RUN apt-get update -qq && apt-get install git cmake build-essential python3 python3-dev python3-pip python3-venv clang libclang-dev libpcap-dev -yy
+RUN apt-get update -qq && \
+    apt-get install git cmake build-essential python3 python3-dev python3-pip python3-venv clang libclang-dev libpcap-dev gettext-base -yy
 
 WORKDIR /atdecc
 

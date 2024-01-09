@@ -62,7 +62,7 @@ This setup can also serve as a blueprint for the setup of the final production i
 The following steps are necessary to compile the daemon on BeagleBone Black/Bela:
 
 ```
-$ sudo apt-get install cmake build-essential python3-venv clang libclang-dev libpcap-dev
+$ sudo apt-get install cmake build-essential python3-venv clang libclang-dev libpcap-dev gettext-base
 $ python3 -m venv venv
 $ source venv/bin/activate
 $ pip install -r requirements.txt
