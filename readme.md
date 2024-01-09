@@ -27,6 +27,10 @@ Build Debian package:
 # 4. Install and run
 
 After installing the Python package with `pip`, the daemon can be run with `sudo atdecc-py` 
+
+For example:
+`pip install dist/atdecc-0.1.post0-py3-none-any.whl`
+
 (or equivalently `sudo python3 -m atdecc`).
 
 Check out `atdecc-py --help` for additional options like network interface and AEM config file. 
